@@ -10,6 +10,8 @@ from sqlmodel import SQLModel
 from geoalchemy2 import alembic_helpers
 from app.areas.models import Area
 from app.sensors.models import Sensor
+from app.soil.profiles.models import SoilProfile
+from app.soil.types.models import SoilType
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -104,7 +104,7 @@ async def get_all_sensordata(
 
     response.headers[
         "Content-Range"
-    ] = f"sensordatas {start}-{end}/{total_count}"
+    ] = f"sensordata {start}-{end}/{total_count}"
 
     return sensordatas
 
@@ -316,8 +316,8 @@ async def get_sensors(
     return sensors_with_data
 
 
-@router.post("", response_model=SensorRead)
-async def create_sensor_from_gpx(
+@router.post("/many", response_model=SensorRead)
+async def create_many_sensors_from_gpx(
     sensor: SensorCreateFromGPX = Body(...),
     session: AsyncSession = Depends(get_session),
 ) -> None:
