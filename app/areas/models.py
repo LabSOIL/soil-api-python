@@ -47,7 +47,9 @@ class AreaRead(AreaBase):
         """Convert the WKBElement to a shapely mapping"""
 
         if isinstance(values.geom, WKBElement):
-            values.geom = shapely.geometry.mapping(shapely.wkb.loads(str(v)))
+            values.geom = shapely.geometry.mapping(
+                shapely.wkb.loads(str(values.geom))
+            )
 
         return values
 
