@@ -97,6 +97,41 @@ class ReactAdminRouter:
             description=f"Delete a {self.name_singular} by its id",
         )
 
+    @property
+    def exact_match_fields(
+        self,
+    ) -> list[str]:
+        """Returns a list of all the UUID fields in the model
+
+        These cannot be performed with a likeness query and must have an
+        exact match.
+
+        """
+        schema = self.db_model.model_json_schema()
+
+        uuid_properties = []
+        for prop_name, prop_details in schema["properties"].items():
+            prop_type = prop_details.get("type")
+            if isinstance(prop_type, list) and "string" in prop_type:
+                any_of_types = prop_details.get("anyOf")
+                if any_of_types:
+                    for any_of_type in any_of_types:
+                        if "string" in any_of_type.get("type", []):
+                            uuid_properties.append(prop_name)
+                            break
+                elif (
+                    "format" in prop_details
+                    and prop_details["format"] == "uuid"
+                ):
+                    uuid_properties.append(prop_name)
+            elif (
+                prop_type == "string"
+                and "format" in prop_details
+                and prop_details["format"] == "uuid"
+            ):
+                uuid_properties.append(prop_name)
+        return uuid_properties
+
     async def update(
         self,
         id: UUID,
@@ -197,15 +232,21 @@ class ReactAdminRouter:
                     query,
                     count_query,
                 ]:  # Apply filter to both queries
-                    if isinstance(value, list):
-                        qry = qry.where(
-                            getattr(self.db_model, field).in_(value)
-                        )
-                    elif field == "id":
-                        qry = qry.where(getattr(self.db_model, field) == value)
+                    if field in self.exact_match_fields:
+                        if isinstance(value, list):
+                            for v in value:
+                                count_query = count_query.filter(
+                                    getattr(self.db_model, field) == v
+                                )
+                        else:
+                            count_query = count_query.filter(
+                                getattr(self.db_model, field) == value
+                            )
                     else:
-                        qry = qry.where(
-                            getattr(self.db_model, field).like(f"%{value}%")
+                        count_query = count_query.filter(
+                            getattr(self.db_model, field).like(
+                                f"%{str(value)}%"
+                            )
                         )
 
         # Execute total count query (including filter)
@@ -229,7 +270,7 @@ class ReactAdminRouter:
                     query = query.where(
                         getattr(self.db_model, field).in_(value)
                     )
-                elif field == "id":
+                elif field in self.exact_match_fields:
                     query = query.where(getattr(self.db_model, field) == value)
                 else:
                     query = query.where(

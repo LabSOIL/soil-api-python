@@ -9,10 +9,14 @@ if TYPE_CHECKING:
 
 class SoilProfileBase(SQLModel):
     name: str = Field(default=None, index=True)
-    description: str | None
-    weather: str | None
-    topography: str | None
-    date_created: datetime.datetime | None
+    description: str | None = Field(default=None)
+    weather: str | None = Field(default=None)
+    topography: str | None = Field(default=None)
+    date_created: datetime.datetime | None = Field(
+        default=None,
+        nullable=True,
+        index=True,
+    )
     soil_type_id: UUID = Field(
         foreign_key="soiltype.id",
         default=None,
