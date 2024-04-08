@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field, Relationship
 from uuid import UUID
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from app.generic.models import ReactAdminDBModel
 
 if TYPE_CHECKING:

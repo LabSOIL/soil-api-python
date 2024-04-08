@@ -1,37 +1,48 @@
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Any
+import sys
 
 
 class Config(BaseSettings):
     API_V1_PREFIX: str = "/v1"
 
     # PostGIS settings
-    DB_HOST: str
-    DB_PORT: int  # 5432
-    DB_USER: str
-    DB_PASSWORD: str
+    DB_HOST: str | None = None
+    DB_PORT: int | None = None  # 5432
+    DB_USER: str | None = None
+    DB_PASSWORD: str | None = None
 
-    DB_NAME: str  # postgres
-    DB_PREFIX: str  # "postgresql+asyncpg"
+    DB_NAME: str | None = None  # postgres
+    DB_PREFIX: str = "postgresql+asyncpg"
 
     DB_URL: str | None = None
 
-    @model_validator(mode="before")
+    @model_validator(mode="after")
     @classmethod
     def form_db_url(cls, values: dict) -> dict:
         """Form the DB URL from the settings"""
-        if "DB_URL" not in values:
-            values["DB_URL"] = (
+        if not values.DB_URL:
+            values.DB_URL = (
                 "{prefix}://{user}:{password}@{host}:{port}/{db}".format(
-                    prefix=values.get("DB_PREFIX"),
-                    user=values.get("DB_USER"),
-                    password=values.get("DB_PASSWORD"),
-                    host=values.get("DB_HOST"),
-                    port=values.get("DB_PORT"),
-                    db=values.get("DB_NAME"),
+                    prefix=values.DB_PREFIX,
+                    user=values.DB_USER,
+                    password=values.DB_PASSWORD,
+                    host=values.DB_HOST,
+                    port=values.DB_PORT,
+                    db=values.DB_NAME,
                 )
             )
+        return values
+
+    @model_validator(mode="before")
+    def dummy_variables_for_testing(cls, values: dict) -> dict:
+        """Add some dummy variables for testing the model validator"""
+        if "pytest" in sys.modules:
+            return {
+                "DB_URL": "sqlite+aiosqlite:///",
+            }
         return values
 
 

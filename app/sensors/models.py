@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, Field, Column, Relationship, UniqueConstraint
 from geoalchemy2 import Geometry, WKBElement
 from uuid import uuid4, UUID
 from typing import Any
-from pydantic import validator, root_validator, model_validator
+from pydantic import model_validator
 import shapely
 from typing import TYPE_CHECKING
 import datetime

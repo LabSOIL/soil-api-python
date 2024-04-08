@@ -3,7 +3,7 @@ from geoalchemy2 import Geometry, WKBElement
 from uuid import uuid4, UUID
 from typing import Any
 import shapely
-from pydantic import validator
+from pydantic import model_validator
 from typing import TYPE_CHECKING
 from typing import List
 from app.sensors.models import SensorRead
@@ -42,29 +42,31 @@ class AreaRead(AreaBase):
     geom: Any
     sensors: List["SensorRead"]
 
-    @validator("geom")
-    def convert_wkb_to_json(cls, v: WKBElement) -> Any:
+    @model_validator(mode="after")
+    def convert_wkb_to_json(cls, values: Any) -> Any:
         """Convert the WKBElement to a shapely mapping"""
-        if isinstance(v, WKBElement):
-            return shapely.geometry.mapping(shapely.wkb.loads(str(v)))
-        else:
-            return v
+
+        if isinstance(values.geom, WKBElement):
+            values.geom = shapely.geometry.mapping(shapely.wkb.loads(str(v)))
+
+        return values
 
 
 class AreaCreate(AreaBase):
     geom: list[tuple[float, float]]
 
-    @validator("geom")
-    def convert_json_to_wkt(cls, v: list[float]) -> Any:
+    @model_validator(mode="after")
+    def convert_json_to_wkt(cls, values: Any) -> Any:
         """Convert the WKBElement to a shapely mapping"""
-        if isinstance(v, list):
-            polygon = shapely.geometry.Polygon(v)
+
+        if isinstance(values.geom, list):
+            polygon = shapely.geometry.Polygon(values.geom)
             oriented_polygon = shapely.geometry.polygon.orient(
                 polygon, sign=1.0
             )
-            return oriented_polygon.wkt
-        else:
-            return v
+            values.geom = oriented_polygon.wkt
+
+        return values
 
 
 class AreaUpdate(AreaBase):
