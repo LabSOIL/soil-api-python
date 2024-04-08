@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, Field, Column, Relationship, UniqueConstraint
 from geoalchemy2 import Geometry, WKBElement
 from uuid import uuid4, UUID
 from typing import Any
-from pydantic import validator, root_validator
+from pydantic import validator, root_validator, model_validator
 import shapely
 from typing import TYPE_CHECKING
 import datetime
@@ -16,7 +16,7 @@ class SensorBase(SQLModel):
     description: str | None = Field(default=None)
     comment: str | None = Field(default=None)
     elevation: float | None = Field(default=None)
-    time_recorded_at_utc: datetime.datetime = Field(
+    time_recorded_at_utc: datetime.datetime | None = Field(
         default=None,
         nullable=True,
         index=True,
@@ -122,31 +122,31 @@ class SensorDataRead(SensorDataBase):
 
 class SensorRead(SensorBase):
     id: UUID
-    geom: Any
+    geom: Any | None
     area_id: UUID
-    latitude: Any
-    longitude: Any
+    latitude: Any | None = None
+    longitude: Any | None = None
 
-    @root_validator
-    def convert_wkb_to_lat_lon(cls, values: dict) -> dict:
+    @model_validator(mode="after")
+    def convert_wkb_to_lat_lon(cls, values: Any) -> dict:
         """Form the geometry from the latitude and longitude"""
-        if isinstance(values["geom"], WKBElement):
-            if values["geom"] is not None:
-                shapely_obj = shapely.wkb.loads(str(values["geom"]))
+        if isinstance(values.geom, WKBElement):
+            if values.geom is not None:
+                shapely_obj = shapely.wkb.loads(str(values.geom))
                 if shapely_obj is not None:
                     mapping = shapely.geometry.mapping(shapely_obj)
 
-                    values["latitude"] = mapping["coordinates"][0]
-                    values["longitude"] = mapping["coordinates"][1]
-                    values["geom"] = mapping
-        elif isinstance(values["geom"], dict):
-            if values["geom"] is not None:
-                values["latitude"] = values["geom"]["coordinates"][0]
-                values["longitude"] = values["geom"]["coordinates"][1]
-                values["geom"] = values["geom"]
+                    values.latitude = mapping["coordinates"][0]
+                    values.longitude = mapping["coordinates"][1]
+                    values.geom = mapping
+        elif isinstance(values.geom, dict):
+            if values.geom is not None:
+                values.latitude = values.geom["coordinates"][0]
+                values.longitude = values.geom["coordinates"][1]
+                values.geom = values.geom
         else:
-            values["latitude"] = None
-            values["longitude"] = None
+            values.latitude = None
+            values.longitude = None
 
         return values
 
@@ -173,14 +173,12 @@ class SensorCreate(SensorBase):
 
     geom: Any | None = None
 
-    @root_validator(pre=True)
-    def convert_lat_lon_to_wkt(cls, values: dict) -> dict:
+    @model_validator(mode="after")
+    def convert_lat_lon_to_wkt(cls, values: Any) -> dict:
         """Form the geometry from the latitude and longitude"""
 
-        if "latitude" in values and "longitude" in values:
-            values[
-                "geom"
-            ] = f"POINT({values['latitude']} {values['longitude']})"
+        if values.latitude and values.longitude:
+            values.geom = f"POINT({values.latitude} {values.longitude})"
 
         return values
 

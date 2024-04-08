@@ -1,9 +1,10 @@
-from pydantic import BaseSettings, root_validator
+from pydantic import model_validator
+from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 
 class Config(BaseSettings):
-    API_V1_PREFIX = "/v1"
+    API_V1_PREFIX: str = "/v1"
 
     # PostGIS settings
     DB_HOST: str
@@ -16,19 +17,20 @@ class Config(BaseSettings):
 
     DB_URL: str | None = None
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def form_db_url(cls, values: dict) -> dict:
         """Form the DB URL from the settings"""
         if "DB_URL" not in values:
-            values[
-                "DB_URL"
-            ] = "{prefix}://{user}:{password}@{host}:{port}/{db}".format(
-                prefix=values["DB_PREFIX"],
-                user=values["DB_USER"],
-                password=values["DB_PASSWORD"],
-                host=values["DB_HOST"],
-                port=values["DB_PORT"],
-                db=values["DB_NAME"],
+            values["DB_URL"] = (
+                "{prefix}://{user}:{password}@{host}:{port}/{db}".format(
+                    prefix=values.get("DB_PREFIX"),
+                    user=values.get("DB_USER"),
+                    password=values.get("DB_PASSWORD"),
+                    host=values.get("DB_HOST"),
+                    port=values.get("DB_PORT"),
+                    db=values.get("DB_NAME"),
+                )
             )
         return values
 
