@@ -6,6 +6,8 @@ from pydantic import model_validator
 import shapely
 from typing import TYPE_CHECKING
 import datetime
+import pyproj
+from app.generic.models import ReactAdminDBModel
 
 if TYPE_CHECKING:
     from app.areas.models import Area
@@ -23,27 +25,16 @@ class SensorBase(SQLModel):
     )
 
 
-class Sensor(SensorBase, table=True):
-    __table_args__ = (UniqueConstraint("id"),)
-    iterator: int = Field(
-        default=None,
-        nullable=False,
-        primary_key=True,
-        index=True,
-    )
-    id: UUID = Field(
-        default_factory=uuid4,
-        index=True,
-        nullable=False,
-    )
+class Sensor(SensorBase, ReactAdminDBModel, table=True):
     time_ingested_at_utc: datetime.datetime = Field(
         default_factory=datetime.datetime.now,
         nullable=False,
         index=True,
     )
-    geom: Any = Field(sa_column=Column(Geometry("POINT", srid=4326)))
+    geom: Any = Field(sa_column=Column(Geometry("POINTZ", srid=2056)))
 
     area_id: UUID = Field(default=None, foreign_key="area.id")
+
     area: "Area" = Relationship(
         back_populates="sensors", sa_relationship_kwargs={"lazy": "selectin"}
     )
@@ -122,31 +113,41 @@ class SensorDataRead(SensorDataBase):
 
 class SensorRead(SensorBase):
     id: UUID
-    geom: Any | None
     area_id: UUID
-    latitude: Any | None = None
-    longitude: Any | None = None
+    geom: Any | None
+    geom: Any | None = None
+    coord_x: float | None = None
+    coord_y: float | None = None
+    coord_z: float | None = None
+    coord_srid: int | None = None
 
     @model_validator(mode="after")
-    def convert_wkb_to_lat_lon(cls, values: Any) -> dict:
-        """Form the geometry from the latitude and longitude"""
+    def convert_wkb_to_x_y(
+        cls,
+        values: "SensorRead",
+    ) -> dict:
+        """Form the geometry from the X and Y coordinates"""
+
         if isinstance(values.geom, WKBElement):
             if values.geom is not None:
                 shapely_obj = shapely.wkb.loads(str(values.geom))
                 if shapely_obj is not None:
                     mapping = shapely.geometry.mapping(shapely_obj)
-
-                    values.latitude = mapping["coordinates"][0]
-                    values.longitude = mapping["coordinates"][1]
+                    values.coord_srid = values.geom.srid
+                    values.coord_y = mapping["coordinates"][0]
+                    values.coord_x = mapping["coordinates"][1]
+                    values.coord_z = mapping["coordinates"][2]
                     values.geom = mapping
         elif isinstance(values.geom, dict):
             if values.geom is not None:
-                values.latitude = values.geom["coordinates"][0]
-                values.longitude = values.geom["coordinates"][1]
+                values.coord_y = values.geom["coordinates"][0]
+                values.coord_x = values.geom["coordinates"][1]
+                values.coord_z = values.geom["coordinates"][2]
                 values.geom = values.geom
         else:
-            values.latitude = None
-            values.longitude = None
+            values.coord_y = None
+            values.coord_x = None
+            values.coord_z = None
 
         return values
 
@@ -168,17 +169,42 @@ class SensorReadWithDataSummaryAndPlot(SensorRead):
 
 class SensorCreate(SensorBase):
     area_id: UUID
-    latitude: float
-    longitude: float
+    coord_y: float | None = None
+    coord_x: float | None = None
+    coord_z: float | None = None
+
+    latitude: float | None = None
+    longitude: float | None = None
 
     geom: Any | None = None
 
     @model_validator(mode="after")
-    def convert_lat_lon_to_wkt(cls, values: Any) -> dict:
-        """Form the geometry from the latitude and longitude"""
+    def convert_x_y_to_wkt(cls, values: Any) -> Any:
+        """Convert the X and Y coordinates to a WKT geometry"""
 
-        if values.latitude and values.longitude:
-            values.geom = f"POINT({values.latitude} {values.longitude})"
+        # Convert coordinates to WKT geom. Prioritize x and y, then lat and lon
+        # Conversion from 4326 to 2056 is necessary for the Swiss coordinates
+        if values.coord_y and values.coord_x:
+            point = shapely.geometry.Point(
+                values.coord_x, values.coord_y, values.coord_z
+            )
+            values.geom = point.wkt
+        elif values.latitude and values.longitude:
+            # If no x and y, try lat and lon. Convert to 2056
+            pyproj_crs = pyproj.CRS("EPSG:4326")
+            pyproj_crs_swiss = pyproj.CRS("EPSG:2056")
+            project = pyproj.Transformer.from_crs(
+                pyproj_crs, pyproj_crs_swiss, always_xy=True
+            ).transform
+            values.coord_x, values.coord_y = project(
+                values.latitude, values.longitude
+            )
+            point = shapely.geometry.Point(
+                values.coord_x, values.coord_y, values.coord_z
+            )
+            values.geom = point.wkt
+        else:
+            values.geom = None
 
         return values
 

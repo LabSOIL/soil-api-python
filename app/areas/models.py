@@ -30,7 +30,7 @@ class Area(AreaBase, table=True):
         index=True,
         nullable=False,
     )
-    geom: Any = Field(sa_column=Column(Geometry("POLYGON", srid=4326)))
+    geom: Any = Field(sa_column=Column(Geometry("POLYGON", srid=2056)))
 
     sensors: list["Sensor"] = Relationship(
         back_populates="area", sa_relationship_kwargs={"lazy": "selectin"}

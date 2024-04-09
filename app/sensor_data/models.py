@@ -7,9 +7,6 @@ from typing import Any
 class AreaBase(SQLModel):
     name: str = Field(default=None, index=True)
     description: str
-    # boundary: Any = Field(sa_column=Column(Geometry("POLYGON", srid=4326)))
-    # parent_id: int = Field(default=None, foreign_key="area.id")
-    # children: list["Area"] = Field(default=None, sa_relation="*")
 
 
 class Area(AreaBase, table=True):

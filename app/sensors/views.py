@@ -102,9 +102,9 @@ async def get_all_sensordata(
     results = await session.execute(query)
     sensordatas = results.scalars().all()
 
-    response.headers[
-        "Content-Range"
-    ] = f"sensordata {start}-{end}/{total_count}"
+    response.headers["Content-Range"] = (
+        f"sensordata {start}-{end}/{total_count}"
+    )
 
     return sensordatas
 
@@ -140,8 +140,8 @@ async def update_sensordata(
 
     # Update the fields from the request
     for field, value in sensordata_data.items():
-        if field in ["latitude", "longitude"]:
-            # Don't process lat/lon, it's converted to geom in model validator
+        if field in ["coord_x", "coord_y"]:
+            # Don't process x/y, it's converted to geom in model validator
             continue
 
         print(f"Updating: {field}, {value}")
@@ -333,15 +333,17 @@ async def create_many_sensors_from_gpx(
             )
         gpxdata = gpxpy.parse(rawdata)
 
+
         for waypoint in gpxdata.waypoints:
             # Use Sensorcreate to facilitate the lat/long to geom conversion
+            
             obj = SensorCreate(
                 name=waypoint.name,
                 description=waypoint.description,
                 comment=waypoint.comment,
                 elevation=waypoint.elevation,
-                latitude=waypoint.latitude,
-                longitude=waypoint.longitude,
+                coord_y=waypoint.latitude,
+                coord_x=waypoint.longitude,
                 time_recorded_at_utc=waypoint.time.replace(tzinfo=None),
                 area_id=sensor.area_id,
             )

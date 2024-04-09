@@ -154,8 +154,11 @@ class ReactAdminRouter:
 
         # Update the fields from the request
         for field, value in update_fields.items():
-            print(f"Updating: {field}, {value}")
-            setattr(db_obj, field, value)
+            # Only update fields that exist in the DB model
+            if hasattr(db_obj, field):
+
+                print(f"Updating: {field}, {value}")
+                setattr(db_obj, field, value)
 
         session.add(db_obj)
         await session.commit()
@@ -185,13 +188,14 @@ class ReactAdminRouter:
     ) -> SQLModel:
 
         raw_body = await request.body()
-        create_obj = self.db_model.model_validate(json.loads(raw_body))
+        create_obj = self.create_model.model_validate(json.loads(raw_body))
+        db_obj = self.db_model.model_validate(create_obj)
 
-        session.add(create_obj)
+        session.add(db_obj)
         await session.commit()
-        await session.refresh(create_obj)
+        await session.refresh(db_obj)
 
-        return create_obj
+        return db_obj
 
     async def get_one(
         self,
