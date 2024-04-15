@@ -156,7 +156,6 @@ class ReactAdminRouter:
         for field, value in update_fields.items():
             # Only update fields that exist in the DB model
             if hasattr(db_obj, field):
-
                 print(f"Updating: {field}, {value}")
                 setattr(db_obj, field, value)
 

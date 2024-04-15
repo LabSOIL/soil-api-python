@@ -1,10 +1,13 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from app.config import config
+
 from app.areas.views import router as areas_router
 from app.sensors.views import router as sensors_router
 from app.soil.views import router as soil_router
-from pydantic import BaseModel
+from app.transects.views import router as transects_router
+from app.plots.views import plots as plots_router
 
 app = FastAPI()
 
@@ -55,4 +58,14 @@ app.include_router(
     soil_router,
     prefix=f"{config.API_V1_PREFIX}/soil",
     tags=["soil"],
+)
+app.include_router(
+    transects_router,
+    prefix=f"{config.API_V1_PREFIX}/transects",
+    tags=["transects"],
+)
+app.include_router(
+    plots_router.router,
+    prefix=f"{config.API_V1_PREFIX}/plots",
+    tags=["plots"],
 )

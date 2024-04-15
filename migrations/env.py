@@ -12,6 +12,7 @@ from app.areas.models import Area  # noqa
 from app.sensors.models import Sensor  # noqa
 from app.soil.profiles.models import SoilProfile  # noqa
 from app.soil.types.models import SoilType  # noqa
+from app.plots.models import Plot
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
