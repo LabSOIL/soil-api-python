@@ -8,6 +8,7 @@ from app.sensors.views import router as sensors_router
 from app.soil.views import router as soil_router
 from app.transects.views import router as transects_router
 from app.plots.views import plots as plots_router
+from app.projects.views import router as projects_router
 
 app = FastAPI()
 
@@ -68,4 +69,9 @@ app.include_router(
     plots_router.router,
     prefix=f"{config.API_V1_PREFIX}/plots",
     tags=["plots"],
+)
+app.include_router(
+    projects_router,
+    prefix=f"{config.API_V1_PREFIX}/projects",
+    tags=["projects"],
 )

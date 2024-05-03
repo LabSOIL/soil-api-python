@@ -10,11 +10,15 @@ from app.sensors.models import SensorRead
 
 if TYPE_CHECKING:
     from app.sensors.models import Sensor
+from app.projects.models import Project
 
 
 class AreaBase(SQLModel):
     name: str = Field(default=None, index=True)
     description: str
+    project_id: UUID = Field(
+        nullable=False, index=True, foreign_key="project.id"
+    )
 
 
 class Area(AreaBase, table=True):
@@ -36,11 +40,17 @@ class Area(AreaBase, table=True):
         back_populates="area", sa_relationship_kwargs={"lazy": "selectin"}
     )
 
+    project: Project = Relationship(
+        sa_relationship_kwargs={"lazy": "selectin"},
+        back_populates="areas",
+    )
+
 
 class AreaRead(AreaBase):
     id: UUID  # We use the UUID as the return ID
     geom: Any
     sensors: List["SensorRead"]
+    project: Project
 
     @model_validator(mode="after")
     def convert_wkb_to_json(cls, values: Any) -> Any:

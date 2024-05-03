@@ -23,6 +23,7 @@ geos = "^0.2.3"
 gpxpy = "^1.6.1"
 pydantic-settings = "^2.2.1"
 pyproj = "^3.6.1"
+secretcolors = "^1.2.6"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"
