@@ -5,6 +5,7 @@ from app.generic.models import ReactAdminDBModel
 
 if TYPE_CHECKING:
     from app.soil.profiles.models import SoilProfile
+    from app.plots.models import Plot
 
 
 class SoilTypeBase(SQLModel):
@@ -14,6 +15,10 @@ class SoilTypeBase(SQLModel):
 
 class SoilType(SoilTypeBase, ReactAdminDBModel, table=True):
     soil_profiles: "SoilProfile" = Relationship(
+        back_populates="soil_type",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
+    plots: "Plot" = Relationship(
         back_populates="soil_type",
         sa_relationship_kwargs={"lazy": "selectin"},
     )

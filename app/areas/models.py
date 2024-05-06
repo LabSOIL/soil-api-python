@@ -7,10 +7,11 @@ from pydantic import model_validator
 from typing import TYPE_CHECKING
 from typing import List
 from app.sensors.models import SensorRead
+from app.projects.models import Project
 
 if TYPE_CHECKING:
     from app.sensors.models import Sensor
-from app.projects.models import Project
+    from app.plots.models import Plot
 
 
 class AreaBase(SQLModel):
@@ -43,6 +44,11 @@ class Area(AreaBase, table=True):
     project: Project = Relationship(
         sa_relationship_kwargs={"lazy": "selectin"},
         back_populates="areas",
+    )
+
+    plots: list["Plot"] = Relationship(
+        back_populates="area",
+        sa_relationship_kwargs={"lazy": "selectin"},
     )
 
 
