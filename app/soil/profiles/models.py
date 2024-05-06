@@ -1,7 +1,6 @@
 from geoalchemy2 import Geometry, WKBElement
 from pydantic import model_validator
 from sqlmodel import SQLModel, Field, UniqueConstraint, Relationship, Column
-from app.generic.models import ReactAdminDBModel
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4, UUID
 import datetime
@@ -50,7 +49,19 @@ class SoilProfileBase(SQLModel):
     )
 
 
-class SoilProfile(SoilProfileBase, ReactAdminDBModel, table=True):
+class SoilProfile(SoilProfileBase, table=True):
+    __table_args__ = (UniqueConstraint("id"),)
+    iterator: int = Field(
+        default=None,
+        nullable=False,
+        primary_key=True,
+        index=True,
+    )
+    id: UUID = Field(
+        default_factory=uuid4,
+        index=True,
+        nullable=False,
+    )
     geom: Any = Field(
         default=None, sa_column=Column(Geometry("POINTZ", srid=2056))
     )

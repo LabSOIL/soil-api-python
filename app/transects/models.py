@@ -1,9 +1,8 @@
 from geoalchemy2 import Geometry, WKBElement
 from pydantic import model_validator
-from sqlmodel import SQLModel, Field, Relationship, Column
-from app.generic.models import ReactAdminDBModel
-from typing import TYPE_CHECKING, Any
-from uuid import UUID
+from sqlmodel import SQLModel, Field, Relationship, Column, UniqueConstraint
+from typing import Any
+from uuid import UUID, uuid4
 import datetime
 import shapely
 
@@ -23,7 +22,19 @@ class TransectBase(SQLModel):
     )
 
 
-class Transect(TransectBase, ReactAdminDBModel, table=True):
+class Transect(TransectBase, table=True):
+    __table_args__ = (UniqueConstraint("id"),)
+    iterator: int = Field(
+        default=None,
+        nullable=False,
+        primary_key=True,
+        index=True,
+    )
+    id: UUID = Field(
+        default_factory=uuid4,
+        index=True,
+        nullable=False,
+    )
     nodes: list["TransectNode"] = Relationship(
         back_populates="parent",
         sa_relationship_kwargs={"lazy": "selectin"},
@@ -42,7 +53,6 @@ class TransectUpdate(TransectBase):
     pass
 
 
-# Transect Node
 class TransectNodeBase(SQLModel):
     name: str = Field(
         default=None,
@@ -63,11 +73,23 @@ class TransectNodeBase(SQLModel):
     )
 
 
-class TransectNode(TransectNodeBase, ReactAdminDBModel, table=True):
+class TransectNode(TransectNodeBase, table=True):
+    __table_args__ = (UniqueConstraint("id"),)
+    iterator: int = Field(
+        default=None,
+        nullable=False,
+        primary_key=True,
+        index=True,
+    )
+    id: UUID = Field(
+        default_factory=uuid4,
+        index=True,
+        nullable=False,
+    )
     geom: Any = Field(
         default=None, sa_column=Column(Geometry("POINTZ", srid=2056))
     )
-    parent_transect: "Transect" = Relationship(
+    parent: "Transect" = Relationship(
         back_populates="nodes",
         sa_relationship_kwargs={"lazy": "selectin"},
     )

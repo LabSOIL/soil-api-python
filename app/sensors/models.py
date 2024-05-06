@@ -7,7 +7,6 @@ import shapely
 from typing import TYPE_CHECKING
 import datetime
 import pyproj
-from app.generic.models import ReactAdminDBModel
 
 if TYPE_CHECKING:
     from app.areas.models import Area
@@ -25,7 +24,19 @@ class SensorBase(SQLModel):
     )
 
 
-class Sensor(SensorBase, ReactAdminDBModel, table=True):
+class Sensor(SensorBase, table=True):
+    __table_args__ = (UniqueConstraint("id"),)
+    iterator: int = Field(
+        default=None,
+        nullable=False,
+        primary_key=True,
+        index=True,
+    )
+    id: UUID = Field(
+        default_factory=uuid4,
+        index=True,
+        nullable=False,
+    )
     time_ingested_at_utc: datetime.datetime = Field(
         default_factory=datetime.datetime.now,
         nullable=False,

@@ -1,7 +1,6 @@
-from sqlmodel import SQLModel, Field, Relationship
-from uuid import UUID
+from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
+from uuid import UUID, uuid4
 from typing import TYPE_CHECKING
-from app.generic.models import ReactAdminDBModel
 
 if TYPE_CHECKING:
     from app.soil.profiles.models import SoilProfile
@@ -13,7 +12,19 @@ class SoilTypeBase(SQLModel):
     description: str
 
 
-class SoilType(SoilTypeBase, ReactAdminDBModel, table=True):
+class SoilType(SoilTypeBase, table=True):
+    __table_args__ = (UniqueConstraint("id"),)
+    iterator: int = Field(
+        default=None,
+        nullable=False,
+        primary_key=True,
+        index=True,
+    )
+    id: UUID = Field(
+        default_factory=uuid4,
+        index=True,
+        nullable=False,
+    )
     soil_profiles: "SoilProfile" = Relationship(
         back_populates="soil_type",
         sa_relationship_kwargs={"lazy": "selectin"},

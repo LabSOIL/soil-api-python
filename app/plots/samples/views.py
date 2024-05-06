@@ -1,8 +1,8 @@
-from app.transects.models import (
-    TransectRead,
-    Transect,
-    TransectCreate,
-    TransectUpdate,
+from app.plots.samples.models import (
+    PlotSampleRead,
+    PlotSample,
+    PlotSampleCreate,
+    PlotSampleUpdate,
 )
 from app.db import get_session, AsyncSession
 from fastapi import Depends, APIRouter, Query, Response, HTTPException
@@ -12,7 +12,7 @@ from typing import Any
 from app.crud import CRUD
 
 router = APIRouter()
-crud = CRUD(Transect, TransectRead, TransectCreate, TransectUpdate)
+crud = CRUD(PlotSample, PlotSampleRead, PlotSampleCreate, PlotSampleUpdate)
 
 
 async def get_count(
@@ -50,48 +50,48 @@ async def get_data(
 
 
 async def get_one(
-    transect_id: UUID,
+    plot_sample_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    res = await crud.get_model_by_id(model_id=transect_id, session=session)
+    res = await crud.get_model_by_id(model_id=plot_sample_id, session=session)
 
     if not res:
         raise HTTPException(
-            status_code=404, detail=f"ID: {transect_id} not found"
+            status_code=404, detail=f"ID: {plot_sample_id} not found"
         )
     return res
 
 
-@router.get("/{transect_id}", response_model=TransectRead)
-async def get_transect(
+@router.get("/{plot_sample_id}", response_model=PlotSampleRead)
+async def get_plot_sample(
     # session: AsyncSession = Depends(get_session),
     # *,
     obj: CRUD = Depends(get_one),
-) -> TransectRead:
-    """Get a transect by id"""
+) -> PlotSampleRead:
+    """Get a plot sample by id"""
 
     return obj
 
 
-@router.get("", response_model=list[TransectRead])
-async def get_all_transects(
+@router.get("", response_model=list[PlotSampleRead])
+async def get_all_plot_samples(
     response: Response,
-    transects: CRUD = Depends(get_data),
+    plot_samples: CRUD = Depends(get_data),
     total_count: int = Depends(get_count),
-) -> list[TransectRead]:
-    """Get all Transect data"""
+) -> list[PlotSampleRead]:
+    """Get all PlotSample data"""
 
-    return transects
+    return plot_samples
 
 
-@router.post("", response_model=TransectRead)
-async def create_transect(
-    transect: TransectCreate,
+@router.post("", response_model=PlotSampleRead)
+async def create_plot_sample(
+    plot_sample: PlotSampleCreate,
     session: AsyncSession = Depends(get_session),
-) -> TransectRead:
-    """Creates a transect data record"""
+) -> PlotSampleRead:
+    """Creates a plot sample data record"""
 
-    obj = Transect.model_validate(transect)
+    obj = PlotSample.model_validate(plot_sample)
 
     session.add(obj)
 
@@ -101,33 +101,33 @@ async def create_transect(
     return obj
 
 
-@router.put("/{transect_id}", response_model=TransectRead)
-async def update_transect(
-    transect_update: TransectUpdate,
+@router.put("/{plot_sample_id}", response_model=PlotSampleRead)
+async def update_plot_sample(
+    plot_sample_update: PlotSampleUpdate,
     *,
-    transect: TransectRead = Depends(get_one),
+    plot_sample: PlotSampleRead = Depends(get_one),
     session: AsyncSession = Depends(get_session),
-) -> TransectRead:
-    """Update a transect by id"""
+) -> PlotSampleRead:
+    """Update a plot sample by id"""
 
-    update_data = transect_update.model_dump(exclude_unset=True)
-    transect.sqlmodel_update(update_data)
+    update_data = plot_sample_update.model_dump(exclude_unset=True)
+    plot_sample.sqlmodel_update(update_data)
 
-    session.add(transect)
+    session.add(plot_sample)
     await session.commit()
-    await session.refresh(transect)
+    await session.refresh(plot_sample)
 
-    return transect
+    return plot_sample
 
 
-@router.delete("/{transect_id}")
-async def delete_transect(
-    transect: TransectRead = Depends(get_one),
+@router.delete("/{plot_sample_id}")
+async def delete_plot_sample(
+    plot_sample: PlotSampleRead = Depends(get_one),
     session: AsyncSession = Depends(get_session),
 ) -> None:
-    """Delete a transect by id"""
+    """Delete a plot sample by id"""
 
-    await session.delete(transect)
+    await session.delete(plot_sample)
     await session.commit()
 
     return {"ok": True}
