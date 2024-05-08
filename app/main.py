@@ -9,6 +9,7 @@ from app.soil.profiles.views import router as soil_profiles_router
 from app.soil.types.views import router as soil_types_router
 from app.transects.views import router as transects_router
 from app.plots.views import router as plots_router
+from app.plots.samples.views import router as plot_samples_router
 from app.projects.views import router as projects_router
 
 app = FastAPI()
@@ -76,6 +77,12 @@ app.include_router(
     prefix=f"{config.API_V1_PREFIX}/plots",
     tags=["plots"],
 )
+app.include_router(
+    plot_samples_router,
+    prefix=f"{config.API_V1_PREFIX}/plot_samples",
+    tags=["plots", "samples"],
+)
+
 app.include_router(
     projects_router,
     prefix=f"{config.API_V1_PREFIX}/projects",

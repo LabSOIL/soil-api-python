@@ -7,12 +7,16 @@ from sqlmodel import SQLModel, Field, Column, UniqueConstraint, Relationship
 from typing import Any, TYPE_CHECKING
 from uuid import UUID, uuid4
 from app.soil.types.models import SoilType
-
-# if TYPE_CHECKING:
 from app.areas.models import Area, AreaRead
+
+if TYPE_CHECKING:
+    from app.plots.samples.models import PlotSample
 
 
 class PlotBase(SQLModel):
+    name: str = Field(
+        index=True,
+    )
     plot_iterator: int = Field(
         description=(
             "The ID given by the scientist to the plot and forms part "
@@ -32,8 +36,7 @@ class PlotBase(SQLModel):
         index=True,
         foreign_key="soiltype.id",
     )
-    gradient: str | None = Field(
-        default=None,
+    gradient: str = Field(
         index=True,
         nullable=False,
     )
@@ -87,6 +90,10 @@ class Plot(PlotBase, table=True):
         sa_relationship_kwargs={"lazy": "selectin"},
         back_populates="plots",
     )
+    samples: list["PlotSample"] = Relationship(
+        back_populates="plot",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
 
 
 class PlotRead(PlotBase):
@@ -102,25 +109,6 @@ class PlotRead(PlotBase):
     area: AreaRead
 
     name: str | None = None
-
-    @model_validator(mode="after")
-    def create_identifier(cls, values: "PlotRead") -> "PlotRead":
-        """Create the identifier
-
-        A combination of the area name, gradient and plot ID
-
-        ie. BF01 is:
-            Area: Binntal
-            Gradient: Flats
-            Plot ID: 01
-        """
-
-        values.name = (
-            f"{values.area.name.upper()[0]}"
-            f"{values.gradient.upper()[0]}{values.plot_iterator:02d}"
-        )
-
-        return values
 
     @model_validator(mode="after")
     def convert_wkb_to_x_y(
@@ -179,6 +167,8 @@ class PlotCreate(PlotBase):
     coord_z: float | None
 
     geom: Any | None = None
+
+    name: str | None = None  # Set null to allow endpoint func to gen. name
 
     @model_validator(mode="after")
     def convert_x_y_to_wkt(cls, values: Any) -> Any:

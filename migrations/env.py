@@ -13,6 +13,7 @@ from app.sensors.models import Sensor  # noqa
 from app.soil.profiles.models import SoilProfile  # noqa
 from app.soil.types.models import SoilType  # noqa
 from app.plots.models import Plot  # noqa
+from app.plots.samples.models import PlotSample  # noqa
 from app.projects.models import Project  # noqa
 
 # this is the Alembic Config object, which provides

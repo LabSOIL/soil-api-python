@@ -10,7 +10,8 @@ from app.db import get_session, AsyncSession
 from fastapi import Depends, APIRouter, Query, Response, HTTPException
 from uuid import UUID
 from app.crud import CRUD
-import json
+from app.areas.models import Area
+from sqlmodel import select
 
 router = APIRouter()
 crud = CRUD(SoilProfile, SoilProfileRead, SoilProfileCreate, SoilProfileUpdate)
@@ -92,7 +93,20 @@ async def create_soil_profile(
 ) -> SoilProfileRead:
     """Creates a soil profile data record"""
 
-    obj = SoilProfile.model_validate(soil_profile)
+    profile = soil_profile.model_dump()
+
+    # Get area for the plot
+    res = await session.exec(
+        select(Area).where(Area.id == profile.get("area_id"))
+    )
+    area_obj = res.one()
+
+    profile["name"] = (
+        f"{area_obj.name.upper()[0]}"
+        f"{profile['gradient'].upper()[0]}{profile['profile_iterator']:02d}"
+    )
+
+    obj = SoilProfile.model_validate(profile)
 
     session.add(obj)
 
@@ -112,6 +126,19 @@ async def update_soil_profile(
     """Update a soil profile by id"""
 
     update_data = soil_profile_update.model_dump(exclude_unset=True)
+
+    # Get area for the profile
+    res = await session.exec(
+        select(Area).where(Area.id == update_data.get("area_id"))
+    )
+    area_obj = res.one()
+
+    update_data["name"] = (
+        f"{area_obj.name.upper()[0]}"
+        f"{update_data['gradient'].upper()[0]}"
+        f"{update_data['profile_iterator']:02d}"
+    )
+
     soil_profile.sqlmodel_update(update_data)
 
     session.add(soil_profile)

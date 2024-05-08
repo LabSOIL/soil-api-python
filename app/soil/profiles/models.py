@@ -14,21 +14,13 @@ from sqlmodel import (
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4, UUID
 from app.areas.models import Area, AreaRead
-from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from app.soil.types.models import SoilType
 
 
-class HorizonDescription(BaseModel):
-    title: str
-    description: str
-
-    class Config:
-        arbitrary_types_allowed = True
-
-
 class SoilProfileBase(SQLModel):
+    name: str = Field(index=True)
     profile_iterator: int = Field(
         description=(
             "The ID given by the scientist to the soil profile and forms part "
@@ -131,30 +123,6 @@ class SoilProfileRead(SoilProfileBase):
 
     area: AreaRead
 
-    name: str | None = None
-
-    @model_validator(mode="after")
-    def create_identifier(
-        cls,
-        values: "SoilProfileRead",
-    ) -> "SoilProfileRead":
-        """Create the identifier
-
-        A combination of the area name, gradient and profile ID
-
-        ie. BF01 is:
-            Area: Binntal
-            Gradient: Flats
-            Profile ID: 01
-        """
-
-        values.name = (
-            f"{values.area.name.upper()[0]}"
-            f"{values.gradient.upper()[0]}{values.profile_iterator:02d}"
-        )
-
-        return values
-
     @model_validator(mode="after")
     def convert_wkb_to_x_y(
         cls,
@@ -212,6 +180,8 @@ class SoilProfileCreate(SoilProfileBase):
     coord_z: float | None
 
     geom: Any | None = None
+
+    name: str | None = None
 
     @model_validator(mode="after")
     def convert_x_y_to_wkt(cls, values: Any) -> Any:

@@ -46,131 +46,131 @@ class PlotSampleBase(SQLModel):
         description="Weight of the complete sample collected in the field "
         "(in grams)",
     )
-    subsample_weight: str = Field(
+    subsample_weight: float | None = Field(
         default=None,
         nullable=True,
         title="Subsample Weight",
         description="Weight of the subsample taken for pH, RH, and LOI "
         "measurements. May contain additional information like replicates",
     )
-    ph: float = Field(
+    ph: float | None = Field(
         default=None,
         nullable=True,
         title="pH",
         description="Average pH value. If replicates are used, this "
         "represents the average pH",
     )
-    rh: float = Field(
+    rh: float | None = Field(
         default=None,
         nullable=True,
         title="Residual Humidity (RH)",
         description="Residual humidity",
     )
-    loi: float = Field(
+    loi: float | None = Field(
         default=None,
         nullable=True,
         title="Loss on Ignition (LOI)",
         description="Loss on ignition during drying process",
     )
-    mfc: float = Field(
+    mfc: float | None = Field(
         default=None,
         nullable=True,
         title="Moisture Factor Correction (MFC)",
         description="Moisture factor correction, representing the ratio of "
         "air-dried soil to oven-dried soil",
     )
-    c: float = Field(
+    c: float | None = Field(
         default=None,
         nullable=True,
         title="Carbon (C) %",
         description="Percentage of carbon content in weight",
     )
-    n: float = Field(
+    n: float | None = Field(
         default=None,
         nullable=True,
         title="Nitrogen (N) %",
         description="Percentage of nitrogen content in weight",
     )
-    cn: float = Field(
+    cn: float | None = Field(
         default=None,
         nullable=True,
         title="Carbon:Nitrogen Ratio",
         description="Ratio of carbon to nitrogen",
     )
-    clay_percent: float = Field(
+    clay_percent: float | None = Field(
         default=None,
         nullable=True,
         title="Clay (%)",
         description="Percentage of clay by volume",
     )
-    silt_percent: float = Field(
+    silt_percent: float | None = Field(
         default=None,
         nullable=True,
         title="Silt (%)",
         description="Percentage of silt by volume",
     )
-    sand_percent: float = Field(
+    sand_percent: float | None = Field(
         default=None,
         nullable=True,
         title="Sand (%)",
         description="Percentage of sand by volume",
     )
 
-    fe_ug_per_g: int = Field(
+    fe_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Iron (Fe) in ug/g",
         description="Iron content in micrograms per gram (ug/g)",
     )
-    al_ug_per_g: int = Field(
+    al_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Aluminum (Al) in ug/g",
         description="Aluminum content in micrograms per gram (ug/g)",
     )
-    k_ug_per_g: int = Field(
+    k_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Potassium (K) in ug/g",
         description="Potassium content in micrograms per gram (ug/g)",
     )
-    ca_ug_per_g: int = Field(
+    ca_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Calcium (Ca) in ug/g",
         description="Calcium content in micrograms per gram (ug/g)",
     )
-    mg_ug_per_g: int = Field(
+    mg_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Magnesium (Mg) in ug/g",
         description="Magnesium content in micrograms per gram (ug/g)",
     )
-    mn_ug_per_g: float = Field(
+    mn_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Manganese (Mn) in ug/g",
         description="Manganese content in micrograms per gram (ug/g)",
     )
-    s_ug_per_g: float = Field(
+    s_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Sulfur (S) in ug/g",
         description="Sulfur content in micrograms per gram (ug/g)",
     )
-    cl_ug_per_g: float = Field(
+    cl_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Chlorine (Cl) in ug/g",
         description="Chlorine content in micrograms per gram (ug/g)",
     )
-    p_ug_per_g: float = Field(
+    p_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Phosphorus (P) in ug/g",
         description="Phosphorus content in micrograms per gram (ug/g)",
     )
-    si_ug_per_g: float = Field(
+    si_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
         title="Silicon (Si) in ug/g",

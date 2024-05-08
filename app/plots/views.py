@@ -8,6 +8,9 @@ from app.db import get_session, AsyncSession
 from fastapi import Depends, APIRouter, Query, Response, HTTPException
 from uuid import UUID
 from app.crud import CRUD
+from app.areas.models import Area
+from sqlmodel import select
+
 
 router = APIRouter()
 crud = CRUD(Plot, PlotRead, PlotCreate, PlotUpdate)
@@ -80,10 +83,23 @@ async def get_all_plots(
 
 @router.post("", response_model=PlotRead)
 async def create_plot(
-    plot: PlotCreate,
+    create_obj: PlotCreate,
     session: AsyncSession = Depends(get_session),
 ) -> PlotRead:
     """Creates a plot data record"""
+
+    plot = create_obj.model_dump()
+
+    # Get area for the plot
+    res = await session.exec(
+        select(Area).where(Area.id == plot.get("area_id"))
+    )
+    area_obj = res.one()
+
+    plot["name"] = (
+        f"{area_obj.name.upper()[0]}"
+        f"{plot['gradient'].upper()[0]}{plot['plot_iterator']:02d}"
+    )
 
     obj = Plot.model_validate(plot)
 
@@ -105,6 +121,19 @@ async def update_plot(
     """Update a plot by id"""
 
     update_data = plot_update.model_dump(exclude_unset=True)
+
+    # Get area for the plot
+    res = await session.exec(
+        select(Area).where(Area.id == update_data.get("area_id"))
+    )
+    area_obj = res.one()
+
+    update_data["name"] = (
+        f"{area_obj.name.upper()[0]}"
+        f"{update_data['gradient'].upper()[0]}"
+        f"{update_data['plot_iterator']:02d}"
+    )
+
     plot.sqlmodel_update(update_data)
 
     session.add(plot)
