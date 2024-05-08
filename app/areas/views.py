@@ -1,100 +1,112 @@
-from fastapi import Depends, APIRouter, Query, Response, Body, HTTPException
-from sqlmodel import select
+from app.areas.models import (
+    AreaRead,
+    Area,
+    AreaCreate,
+    AreaUpdate,
+)
 from app.db import get_session, AsyncSession
-from app.areas.models import Area, AreaCreate, AreaRead, AreaUpdate
+from fastapi import Depends, APIRouter, Query, Response, HTTPException
 from uuid import UUID
-from sqlalchemy import func
-import json
+from app.crud import CRUD
 
 router = APIRouter()
+crud = CRUD(Area, AreaRead, AreaCreate, AreaUpdate)
 
 
-@router.get("/{area_id}", response_model=AreaRead)
-async def get_area(
-    session: AsyncSession = Depends(get_session),
-    *,
-    area_id: UUID,
-) -> AreaRead:
-    """Get an area by id"""
-    res = await session.execute(select(Area).where(Area.id == area_id))
-    area = res.scalars().one_or_none()
-
-    return area
-
-
-@router.get("", response_model=list[AreaRead])
-async def get_areas(
+async def get_count(
     response: Response,
+    filter: str = Query(None),
+    range: str = Query(None),
+    sort: str = Query(None),
+    session: AsyncSession = Depends(get_session),
+):
+    count = await crud.get_total_count(
+        response=response,
+        sort=sort,
+        range=range,
+        filter=filter,
+        session=session,
+    )
+
+    return count
+
+
+async def get_data(
     filter: str = Query(None),
     sort: str = Query(None),
     range: str = Query(None),
     session: AsyncSession = Depends(get_session),
 ):
-    """Get all areas"""
+    res = await crud.get_model_data(
+        sort=sort,
+        range=range,
+        filter=filter,
+        session=session,
+    )
 
-    sort = json.loads(sort) if sort else []
-    range = json.loads(range) if range else []
-    filter = json.loads(filter) if filter else {}
+    return res
 
-    query = select(Area)
 
-    # Do a query to satisfy total count for "Content-Range" header
-    count_query = select(func.count(Area.iterator))
-    if len(filter):  # Have to filter twice for some reason? SQLModel state?
-        for field, value in filter.items():
-            for qry in [query, count_query]:  # Apply filter to both queries
-                if isinstance(value, list):
-                    qry = qry.where(getattr(Area, field).in_(value))
-                elif field == "id" or field == "area_id":
-                    qry = qry.where(getattr(Area, field) == value)
-                else:
-                    qry = qry.where(getattr(Area, field).like(f"%{value}%"))
+async def get_one(
+    area_id: UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    res = await crud.get_model_by_id(model_id=area_id, session=session)
 
-    # Execute total count query (including filter)
-    total_count_query = await session.execute(count_query)
-    total_count = total_count_query.scalar_one()
+    if not res:
+        raise HTTPException(status_code=404, detail=f"ID: {area_id} not found")
+    return res
 
-    # Order by sort field params ie. ["name","ASC"]
-    if len(sort) == 2:
-        sort_field, sort_order = sort
-        if sort_order == "ASC":
-            query = query.order_by(getattr(Area, sort_field))
-        else:
-            query = query.order_by(getattr(Area, sort_field).desc())
 
-    # Filter by filter field params ie. {"name":"bar"}
-    if len(filter):
-        for field, value in filter.items():
-            if isinstance(value, list):
-                query = query.where(getattr(Area, field).in_(value))
-            elif field == "id" or field == "area_id":
-                query = query.where(getattr(Area, field) == value)
-            else:
-                query = query.where(getattr(Area, field).like(f"%{value}%"))
+@router.get("/{area_id}", response_model=AreaRead)
+async def get_area(
+    obj: CRUD = Depends(get_one),
+) -> AreaRead:
+    """Get an area by id"""
 
-    if len(range) == 2:
-        start, end = range
-        query = query.offset(start).limit(end - start + 1)
-    else:
-        start, end = [0, total_count]  # For content-range header
+    return obj
 
-    # Execute query
-    results = await session.execute(query)
-    areas = results.scalars().all()
 
-    response.headers["Content-Range"] = f"areas {start}-{end}/{total_count}"
+@router.get("", response_model=list[AreaRead])
+async def get_all_areas(
+    response: Response,
+    areas: CRUD = Depends(get_data),
+    total_count: int = Depends(get_count),
+) -> list[AreaRead]:
+    """Get all Area data"""
 
     return areas
 
 
 @router.post("", response_model=AreaRead)
 async def create_area(
-    area: AreaCreate = Body(...),
+    area: AreaCreate,
     session: AsyncSession = Depends(get_session),
 ) -> AreaRead:
-    """Creates an area"""
-    print(area)
-    area = Area.from_orm(area)
+    """Creates an area data record"""
+
+    obj = Area.model_validate(area)
+
+    session.add(obj)
+
+    await session.commit()
+    await session.refresh(obj)
+
+    return obj
+
+
+@router.put("/{area_id}", response_model=AreaRead)
+async def update_area(
+    area_update: AreaUpdate,
+    *,
+    area: AreaRead = Depends(get_one),
+    session: AsyncSession = Depends(get_session),
+) -> AreaRead:
+    """Update an area by id"""
+
+    update_data = area_update.model_dump(exclude_unset=True)
+    area.sqlmodel_update(update_data)
+
     session.add(area)
     await session.commit()
     await session.refresh(area)
@@ -102,41 +114,14 @@ async def create_area(
     return area
 
 
-@router.put("/{area_id}", response_model=AreaRead)
-async def update_area(
-    area_id: UUID,
-    area_update: AreaUpdate,
-    session: AsyncSession = Depends(get_session),
-) -> AreaRead:
-    res = await session.execute(select(Area).where(Area.id == area_id))
-    area_db = res.scalars().one()
-    area_data = area_update.dict(exclude_unset=True)
-
-    if not area_db:
-        raise HTTPException(status_code=404, detail="Area not found")
-
-    # Update the fields from the request
-    for field, value in area_data.items():
-        print(f"Updating: {field}, {value}")
-        setattr(area_db, field, value)
-
-    session.add(area_db)
-    await session.commit()
-    await session.refresh(area_db)
-
-    return area_db
-
-
 @router.delete("/{area_id}")
 async def delete_area(
-    area_id: UUID,
+    area: AreaRead = Depends(get_one),
     session: AsyncSession = Depends(get_session),
-    filter: dict[str, str] | None = None,
 ) -> None:
     """Delete an area by id"""
-    res = await session.execute(select(Area).where(Area.id == area_id))
-    area = res.scalars().one_or_none()
 
-    if area:
-        await session.delete(area)
-        await session.commit()
+    await session.delete(area)
+    await session.commit()
+
+    return {"ok": True}

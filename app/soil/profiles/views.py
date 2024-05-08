@@ -10,6 +10,7 @@ from app.db import get_session, AsyncSession
 from fastapi import Depends, APIRouter, Query, Response, HTTPException
 from uuid import UUID
 from app.crud import CRUD
+import json
 
 router = APIRouter()
 crud = CRUD(SoilProfile, SoilProfileRead, SoilProfileCreate, SoilProfileUpdate)
@@ -120,7 +121,7 @@ async def update_soil_profile(
     return soil_profile
 
 
-@router.delete("/{soil_profile_id}")
+@router.delete("/profiles/{soil_profile_id}")
 async def delete_soil_profile(
     soil_profile: SoilProfileRead = Depends(get_one),
     session: AsyncSession = Depends(get_session),

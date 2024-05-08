@@ -59,9 +59,7 @@ async def get_one(
 
 
 @router.get("/{plot_id}", response_model=PlotRead)
-async def get_Plot(
-    # session: AsyncSession = Depends(get_session),
-    # *,
+async def get_plot(
     obj: CRUD = Depends(get_one),
 ) -> PlotRead:
     """Get a plot by id"""
@@ -70,7 +68,7 @@ async def get_Plot(
 
 
 @router.get("", response_model=list[PlotRead])
-async def get_all_Plots(
+async def get_all_plots(
     response: Response,
     plots: CRUD = Depends(get_data),
     total_count: int = Depends(get_count),
@@ -81,7 +79,7 @@ async def get_all_Plots(
 
 
 @router.post("", response_model=PlotRead)
-async def create_Plot(
+async def create_plot(
     plot: PlotCreate,
     session: AsyncSession = Depends(get_session),
 ) -> PlotRead:
@@ -98,7 +96,7 @@ async def create_Plot(
 
 
 @router.put("/{plot_id}", response_model=PlotRead)
-async def update_Plot(
+async def update_plot(
     plot_update: PlotUpdate,
     *,
     plot: PlotRead = Depends(get_one),
@@ -117,7 +115,7 @@ async def update_Plot(
 
 
 @router.delete("/{plot_id}")
-async def delete_Plot(
+async def delete_plot(
     plot: PlotRead = Depends(get_one),
     session: AsyncSession = Depends(get_session),
 ) -> None:

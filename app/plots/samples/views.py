@@ -6,9 +6,7 @@ from app.plots.samples.models import (
 )
 from app.db import get_session, AsyncSession
 from fastapi import Depends, APIRouter, Query, Response, HTTPException
-from sqlmodel import select
 from uuid import UUID
-from typing import Any
 from app.crud import CRUD
 
 router = APIRouter()
@@ -64,8 +62,6 @@ async def get_one(
 
 @router.get("/{plot_sample_id}", response_model=PlotSampleRead)
 async def get_plot_sample(
-    # session: AsyncSession = Depends(get_session),
-    # *,
     obj: CRUD = Depends(get_one),
 ) -> PlotSampleRead:
     """Get a plot sample by id"""

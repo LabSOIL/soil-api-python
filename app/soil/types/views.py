@@ -49,14 +49,14 @@ async def get_data(
 
 
 async def get_one(
-    soil_profile_id: UUID,
+    soil_type_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    res = await crud.get_model_by_id(model_id=soil_profile_id, session=session)
+    res = await crud.get_model_by_id(model_id=soil_type_id, session=session)
 
     if not res:
         raise HTTPException(
-            status_code=404, detail=f"ID: {soil_profile_id} not found"
+            status_code=404, detail=f"ID: {soil_type_id} not found"
         )
     return res
 

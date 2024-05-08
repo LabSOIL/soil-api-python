@@ -1,24 +1,49 @@
-from geoalchemy2 import Geometry, WKBElement
-from pydantic import model_validator
-from sqlmodel import SQLModel, Field, UniqueConstraint, Relationship, Column
-from typing import TYPE_CHECKING, Any
-from uuid import uuid4, UUID
 import datetime
 import shapely
-
+import pyproj
+from geoalchemy2 import Geometry, WKBElement
+from pydantic import model_validator
+from sqlmodel import (
+    SQLModel,
+    Field,
+    UniqueConstraint,
+    Relationship,
+    Column,
+    JSON,
+)
+from typing import TYPE_CHECKING, Any
+from uuid import uuid4, UUID
+from app.areas.models import Area, AreaRead
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from app.soil.types.models import SoilType
 
 
+class HorizonDescription(BaseModel):
+    title: str
+    description: str
+
+    class Config:
+        arbitrary_types_allowed = True
+
+
 class SoilProfileBase(SQLModel):
-    name: str = Field(
+    profile_iterator: int = Field(
+        description=(
+            "The ID given by the scientist to the soil profile and forms part "
+            "of the field ID. ie. 1 will become the 1 in BF01"
+        ),
         default=None,
         index=True,
     )
-    description_horizon: str | None = Field(
+    gradient: str | None = Field(
         default=None,
+        index=True,
+        nullable=False,
     )
+    description_horizon: Any = Field(default=[], sa_column=Column(JSON))
+
     weather: str | None = Field(
         default=None,
     )
@@ -28,7 +53,7 @@ class SoilProfileBase(SQLModel):
     vegetation_type: str | None = Field(
         default=None,
     )
-    aspect: float | None = Field(
+    aspect: str | None = Field(
         default=None,
     )
     slope: float | None = Field(
@@ -37,7 +62,7 @@ class SoilProfileBase(SQLModel):
     lythology_surficial_deposit: str | None = Field(
         default=None,
     )
-    date_created: datetime.datetime | None = Field(
+    created_on: datetime.datetime | None = Field(
         default=None,
         nullable=True,
         index=True,
@@ -47,10 +72,26 @@ class SoilProfileBase(SQLModel):
         default=None,
         index=True,
     )
+    area_id: UUID = Field(
+        foreign_key="area.id",
+        default=None,
+        index=True,
+    )
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 class SoilProfile(SoilProfileBase, table=True):
-    __table_args__ = (UniqueConstraint("id"),)
+    __table_args__ = (
+        UniqueConstraint("id"),
+        UniqueConstraint(
+            "profile_iterator",
+            "area_id",
+            "gradient",
+            name="unique_profile",
+        ),
+    )
     iterator: int = Field(
         default=None,
         nullable=False,
@@ -71,6 +112,11 @@ class SoilProfile(SoilProfileBase, table=True):
         sa_relationship_kwargs={"lazy": "selectin"},
     )
 
+    area: Area = Relationship(
+        back_populates="soil_profiles",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
+
 
 class SoilProfileRead(SoilProfileBase):
     id: UUID
@@ -80,10 +126,39 @@ class SoilProfileRead(SoilProfileBase):
     coord_z: float | None = None
     coord_srid: int | None = None
 
+    latitude: float | None = None
+    longitude: float | None = None
+
+    area: AreaRead
+
+    name: str | None = None
+
+    @model_validator(mode="after")
+    def create_identifier(
+        cls,
+        values: "SoilProfileRead",
+    ) -> "SoilProfileRead":
+        """Create the identifier
+
+        A combination of the area name, gradient and profile ID
+
+        ie. BF01 is:
+            Area: Binntal
+            Gradient: Flats
+            Profile ID: 01
+        """
+
+        values.name = (
+            f"{values.area.name.upper()[0]}"
+            f"{values.gradient.upper()[0]}{values.profile_iterator:02d}"
+        )
+
+        return values
+
     @model_validator(mode="after")
     def convert_wkb_to_x_y(
         cls,
-        values: "SoilProfileRead",
+        values: "PlotRead",
     ) -> dict:
         """Form the geometry from the X and Y coordinates"""
 
@@ -93,16 +168,36 @@ class SoilProfileRead(SoilProfileBase):
                 if shapely_obj is not None:
                     mapping = shapely.geometry.mapping(shapely_obj)
                     values.coord_srid = values.geom.srid
-                    values.coord_x = mapping["coordinates"][1]
-                    values.coord_y = mapping["coordinates"][0]
+                    values.coord_x = mapping["coordinates"][0]
+                    values.coord_y = mapping["coordinates"][1]
                     values.coord_z = mapping["coordinates"][2]
                     values.geom = mapping
+
+                    # Set the latitude and longitude by reprojecting to WGS84
+                    transformer = pyproj.Transformer.from_crs(
+                        "EPSG:2056", "EPSG:4326", always_xy=True
+                    )
+                    values.longitude, values.latitude, _ = (
+                        transformer.transform(
+                            values.coord_x, values.coord_y, values.coord_z
+                        )
+                    )
+
         elif isinstance(values.geom, dict):
             if values.geom is not None:
-                values.coord_y = values.geom["coordinates"][0]
-                values.coord_x = values.geom["coordinates"][1]
+                values.coord_x = values.geom["coordinates"][0]
+                values.coord_y = values.geom["coordinates"][1]
                 values.coord_z = values.geom["coordinates"][2]
                 values.geom = values.geom
+
+                # Set the latitude and longitude by reprojecting to WGS84
+                transformer = pyproj.Transformer.from_crs(
+                    "EPSG:2056", "EPSG:4326", always_xy=True
+                )
+                values.longitude, values.latitude, _ = transformer.transform(
+                    values.coord_x, values.coord_y, values.coord_z
+                )
+
         else:
             values.coord_x = None
             values.coord_y = None

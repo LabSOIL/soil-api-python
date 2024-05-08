@@ -1,12 +1,15 @@
+import shapely
+import datetime
+import pyproj
 from geoalchemy2 import Geometry, WKBElement
 from pydantic import model_validator
 from sqlmodel import SQLModel, Field, Column, UniqueConstraint, Relationship
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from uuid import UUID, uuid4
-import shapely
-import datetime
-from app.areas.models import Area, AreaRead
 from app.soil.types.models import SoilType
+
+# if TYPE_CHECKING:
+from app.areas.models import Area, AreaRead
 
 
 class PlotBase(SQLModel):
@@ -17,9 +20,6 @@ class PlotBase(SQLModel):
         ),
         default=None,
         index=True,
-    )
-    description_horizon: str | None = Field(
-        default=None,
     )
     area_id: UUID = Field(
         nullable=False,
@@ -58,7 +58,10 @@ class Plot(PlotBase, table=True):
     __table_args__ = (
         UniqueConstraint("id"),
         UniqueConstraint(
-            "plot_iterator", "area_id", "gradient", name="unique_plot"
+            "plot_iterator",
+            "area_id",
+            "gradient",
+            name="unique_plot",
         ),
     )
     iterator: int = Field(
@@ -76,7 +79,7 @@ class Plot(PlotBase, table=True):
     geom: Any = Field(
         default=None, sa_column=Column(Geometry("POINTZ", srid=2056))
     )
-    area: "Area" = Relationship(
+    area: Area = Relationship(
         sa_relationship_kwargs={"lazy": "selectin"},
         back_populates="plots",
     )
@@ -93,6 +96,8 @@ class PlotRead(PlotBase):
     coord_y: float | None = None
     coord_z: float | None = None
     coord_srid: int | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
     area: AreaRead
 
@@ -134,12 +139,32 @@ class PlotRead(PlotBase):
                     values.coord_y = mapping["coordinates"][1]
                     values.coord_z = mapping["coordinates"][2]
                     values.geom = mapping
+
+                    # Set the latitude and longitude by reprojecting to WGS84
+                    transformer = pyproj.Transformer.from_crs(
+                        "EPSG:2056", "EPSG:4326", always_xy=True
+                    )
+                    values.longitude, values.latitude, _ = (
+                        transformer.transform(
+                            values.coord_x, values.coord_y, values.coord_z
+                        )
+                    )
+
         elif isinstance(values.geom, dict):
             if values.geom is not None:
                 values.coord_x = values.geom["coordinates"][0]
                 values.coord_y = values.geom["coordinates"][1]
                 values.coord_z = values.geom["coordinates"][2]
                 values.geom = values.geom
+
+                # Set the latitude and longitude by reprojecting to WGS84
+                transformer = pyproj.Transformer.from_crs(
+                    "EPSG:2056", "EPSG:4326", always_xy=True
+                )
+                values.longitude, values.latitude, _ = transformer.transform(
+                    values.coord_x, values.coord_y, values.coord_z
+                )
+
         else:
             values.coord_x = None
             values.coord_y = None
