@@ -14,6 +14,7 @@ from sqlmodel import (
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4, UUID
 from app.areas.models import Area, AreaRead
+from app.config import config
 
 if TYPE_CHECKING:
     from app.soil.types.models import SoilType
@@ -96,7 +97,7 @@ class SoilProfile(SoilProfileBase, table=True):
         nullable=False,
     )
     geom: Any = Field(
-        default=None, sa_column=Column(Geometry("POINTZ", srid=2056))
+        default=None, sa_column=Column(Geometry("POINTZ", srid=config.SRID))
     )
 
     soil_type: "SoilType" = Relationship(
@@ -143,7 +144,7 @@ class SoilProfileRead(SoilProfileBase):
 
                     # Set the latitude and longitude by reprojecting to WGS84
                     transformer = pyproj.Transformer.from_crs(
-                        "EPSG:2056", "EPSG:4326", always_xy=True
+                        f"EPSG:{str(config.SRID)}", "EPSG:4326", always_xy=True
                     )
                     values.longitude, values.latitude, _ = (
                         transformer.transform(
@@ -160,7 +161,7 @@ class SoilProfileRead(SoilProfileBase):
 
                 # Set the latitude and longitude by reprojecting to WGS84
                 transformer = pyproj.Transformer.from_crs(
-                    "EPSG:2056", "EPSG:4326", always_xy=True
+                    f"EPSG:{str(config.SRID)}", "EPSG:4326", always_xy=True
                 )
                 values.longitude, values.latitude, _ = transformer.transform(
                     values.coord_x, values.coord_y, values.coord_z

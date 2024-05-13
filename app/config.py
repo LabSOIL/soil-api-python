@@ -7,6 +7,7 @@ import sys
 
 class Config(BaseSettings):
     API_V1_PREFIX: str = "/v1"
+    SRID: int = 2056  # To use for x,y coords in CH | CH1903+ / LV95
 
     # PostGIS settings
     DB_HOST: str | None = None

@@ -5,9 +5,8 @@ from typing import Any
 import shapely
 from pydantic import model_validator
 from typing import TYPE_CHECKING
-from app.sensors.models import SensorRead
 from app.projects.models import Project
-import pyproj
+from app.config import config
 
 if TYPE_CHECKING:
     from app.plots.models import Plot
@@ -36,7 +35,7 @@ class Area(AreaBase, table=True):
         index=True,
         nullable=False,
     )
-    geom: Any = Field(sa_column=Column(Geometry("POLYGON", srid=2056)))
+    geom: Any = Field(sa_column=Column(Geometry("POLYGON", srid=config.SRID)))
 
     sensors: list["Sensor"] = Relationship(
         back_populates="area",

@@ -7,6 +7,7 @@ import shapely
 from typing import TYPE_CHECKING
 import datetime
 import pyproj
+from app.config import config
 
 if TYPE_CHECKING:
     from app.areas.models import Area
@@ -42,7 +43,7 @@ class Sensor(SensorBase, table=True):
         nullable=False,
         index=True,
     )
-    geom: Any = Field(sa_column=Column(Geometry("POINTZ", srid=2056)))
+    geom: Any = Field(sa_column=Column(Geometry("POINTZ", srid=config.SRID)))
 
     area_id: UUID = Field(default=None, foreign_key="area.id")
 
@@ -194,16 +195,16 @@ class SensorCreate(SensorBase):
         """Convert the X and Y coordinates to a WKT geometry"""
 
         # Convert coordinates to WKT geom. Prioritize x and y, then lat and lon
-        # Conversion from 4326 to 2056 is necessary for the Swiss coordinates
+        # Conversion from 4326 to Swiss coordinates
         if values.coord_y and values.coord_x:
             point = shapely.geometry.Point(
                 values.coord_x, values.coord_y, values.coord_z
             )
             values.geom = point.wkt
         elif values.latitude and values.longitude:
-            # If no x and y, try lat and lon. Convert to 2056
+            # If no x and y, try lat and lon. Convert to Swiss coordinates
             pyproj_crs = pyproj.CRS("EPSG:4326")
-            pyproj_crs_swiss = pyproj.CRS("EPSG:2056")
+            pyproj_crs_swiss = pyproj.CRS(f"EPSG:{str(config.SRID)}")
             project = pyproj.Transformer.from_crs(
                 pyproj_crs, pyproj_crs_swiss, always_xy=True
             ).transform

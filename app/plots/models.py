@@ -8,6 +8,7 @@ from typing import Any, TYPE_CHECKING
 from uuid import UUID, uuid4
 from app.soil.types.models import SoilType
 from app.areas.models import Area, AreaRead
+from app.config import config
 
 if TYPE_CHECKING:
     from app.plots.samples.models import PlotSample
@@ -80,7 +81,7 @@ class Plot(PlotBase, table=True):
     )
 
     geom: Any = Field(
-        default=None, sa_column=Column(Geometry("POINTZ", srid=2056))
+        default=None, sa_column=Column(Geometry("POINTZ", srid=config.SRID))
     )
     area: Area = Relationship(
         sa_relationship_kwargs={"lazy": "selectin"},
@@ -130,7 +131,7 @@ class PlotRead(PlotBase):
 
                     # Set the latitude and longitude by reprojecting to WGS84
                     transformer = pyproj.Transformer.from_crs(
-                        "EPSG:2056", "EPSG:4326", always_xy=True
+                        f"EPSG:{str(config.SRID)}", "EPSG:4326", always_xy=True
                     )
                     values.longitude, values.latitude, _ = (
                         transformer.transform(
@@ -147,7 +148,7 @@ class PlotRead(PlotBase):
 
                 # Set the latitude and longitude by reprojecting to WGS84
                 transformer = pyproj.Transformer.from_crs(
-                    "EPSG:2056", "EPSG:4326", always_xy=True
+                    f"EPSG:{str(config.SRID)}", "EPSG:4326", always_xy=True
                 )
                 values.longitude, values.latitude, _ = transformer.transform(
                     values.coord_x, values.coord_y, values.coord_z

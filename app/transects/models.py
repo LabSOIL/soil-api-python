@@ -5,6 +5,7 @@ from typing import Any
 from uuid import UUID, uuid4
 import datetime
 import shapely
+from app.config import config
 
 
 class TransectBase(SQLModel):
@@ -87,7 +88,7 @@ class TransectNode(TransectNodeBase, table=True):
         nullable=False,
     )
     geom: Any = Field(
-        default=None, sa_column=Column(Geometry("POINTZ", srid=2056))
+        default=None, sa_column=Column(Geometry("POINTZ", srid=config.SRID))
     )
     parent: "Transect" = Relationship(
         back_populates="nodes",

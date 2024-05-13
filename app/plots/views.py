@@ -11,7 +11,6 @@ from app.crud import CRUD
 from app.areas.models import Area
 from sqlmodel import select
 
-
 router = APIRouter()
 crud = CRUD(Plot, PlotRead, PlotCreate, PlotUpdate)
 
