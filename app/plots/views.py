@@ -3,13 +3,18 @@ from app.plots.models import (
     PlotCreate,
     PlotRead,
     PlotUpdate,
+    PlotCreateBatch,
 )
+from app.projects.models import Project
 from app.db import get_session, AsyncSession
 from fastapi import Depends, APIRouter, Query, Response, HTTPException
 from uuid import UUID
 from app.crud import CRUD
 from app.areas.models import Area
+from typing import Any
+from app.utils import decode_base64
 from sqlmodel import select
+from sqlalchemy import func
 
 router = APIRouter()
 crud = CRUD(Plot, PlotRead, PlotCreate, PlotUpdate)
@@ -108,6 +113,137 @@ async def create_plot(
     await session.refresh(obj)
 
     return obj
+
+
+@router.post(
+    "/batch",
+    response_model=Any,
+    # response_model=list[PlotSampleRead],
+)
+async def create_plot_batch(
+    plot: PlotCreateBatch,
+    session: AsyncSession = Depends(get_session),
+) -> PlotRead:
+    """Creates plots from a csv
+
+    Before committing to db we need to parse the csv file and create a
+    PlotSampleCreate object for each line in the csv file.
+
+    We should make sure there are no duplicates in the DB and CSV.
+    """
+
+    rawdata, dtype = decode_base64(plot.attachment)
+    if dtype != "csv":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type: {dtype}. Must be a csv file.",
+        )
+    # print(rawdata)
+    lines = rawdata.decode("utf-8").split("\n")
+    csv_header = tuple([line.strip() for line in lines[0].split(",")])
+
+    # [print(dtype, line) for line in lines]
+    header = list(PlotCreate.model_fields.keys())
+    # header.remove("plot_id")
+    header.append("project_name")
+    header.append("catchment")
+    header.append("gradient")
+
+    # Add 'project_name' to header
+    # Remove 'plot_id' from header
+    # header
+    print("CLASS", header)
+    print("INCOMING", csv_header)
+
+    for header_line in lines[0].split(","):
+        if header_line.strip() not in header:
+            print(f"Invalid header: {header_line}")
+
+    objs = []
+    errors = []
+    for i, line in enumerate(lines[1:]):
+        # For each line in lines, build a PlotSampleCreate object
+        if not line:  # Skip empty lines
+            continue
+
+        line = line.split(",")
+        data = dict(zip(csv_header, line))
+
+        query = await session.exec(
+            select(Area)
+            .join(Project)
+            .where(func.lower(Area.name) == data["area_name"].lower())
+            .where(func.lower(Project.name) == data["project_name"].lower())
+        )
+        area = query.one_or_none()
+        if not area:
+            # Create Area name from catchment, gradient and plot id
+
+            errors.append(
+                {
+                    "csv_line": i,
+                    "message": (
+                        f"Area '{data['area_name']}' not found in "
+                        f"project: '{data['project_name']}'"
+                    ),
+                }
+            )
+            continue
+
+        data["area_id"] = area.id
+        data["plot_iterator"] = int(data["id"])
+        data["name"] = (
+            f"{area.name.upper()[0]}"
+            f"{data['gradient'].upper()[0]}{data['plot_iterator']:02d}"
+        )
+        # Check that the data doesn't already exist in the DB
+        query = await session.exec(
+            select(Plot).where(
+                Plot.area_id == data["area_id"],
+                Plot.plot_iterator == int(data["id"]),
+            )
+        )
+        if query.one_or_none():
+            errors.append(
+                {
+                    "csv_line": i,
+                    "message": (
+                        f"Duplicate record: {data['plot_id']} {data['name']}"
+                    ),
+                }
+            )
+            continue
+
+        create_obj = PlotCreate.model_validate(data)
+        # obj = PlotSample.model_validate(plot_sample)
+        objs.append(create_obj)
+    print("OBJS", objs)
+    print("Objs to create:", len(objs))
+
+    # Raise exception if any errors as to not make any changes to the DB
+    if errors:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "success": False,
+                "message": "Errors in CSV file",
+                "errors": errors,
+            },
+        )
+
+    for obj in objs:
+        db_obj = Plot.model_validate(obj)
+        session.add(db_obj)
+
+    await session.commit()
+    return True
+
+    # session.add(obj)
+
+    # await session.commit()
+    # await session.refresh(obj)
+
+    # return obj
 
 
 @router.put("/{plot_id}", response_model=PlotRead)

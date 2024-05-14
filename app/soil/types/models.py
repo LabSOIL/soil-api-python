@@ -29,10 +29,6 @@ class SoilType(SoilTypeBase, table=True):
         back_populates="soil_type",
         sa_relationship_kwargs={"lazy": "selectin"},
     )
-    plots: "Plot" = Relationship(
-        back_populates="soil_type",
-        sa_relationship_kwargs={"lazy": "selectin"},
-    )
 
 
 class SoilTypeRead(SoilTypeBase):

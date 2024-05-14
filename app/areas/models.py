@@ -15,15 +15,25 @@ if TYPE_CHECKING:
 
 
 class AreaBase(SQLModel):
-    name: str = Field(default=None, index=True)
-    description: str
+    name: str = Field(
+        default=None,
+        index=True,
+        nullable=False,
+    )
+    description: str | None = Field(
+        default=None,
+        nullable=True,
+    )
     project_id: UUID = Field(
         nullable=False, index=True, foreign_key="project.id"
     )
 
 
 class Area(AreaBase, table=True):
-    __table_args__ = (UniqueConstraint("id"),)
+    __table_args__ = (
+        UniqueConstraint("id"),
+        UniqueConstraint("name", "project_id", name="name_project_id"),
+    )
     iterator: int = Field(
         default=None,
         nullable=False,
@@ -35,8 +45,6 @@ class Area(AreaBase, table=True):
         index=True,
         nullable=False,
     )
-    geom: Any = Field(sa_column=Column(Geometry("POLYGON", srid=config.SRID)))
-
     sensors: list["Sensor"] = Relationship(
         back_populates="area",
         sa_relationship_kwargs={"lazy": "selectin"},
@@ -60,7 +68,7 @@ class Area(AreaBase, table=True):
 
 class AreaRead(AreaBase):
     id: UUID  # We use the UUID as the return ID
-    geom: Any
+    geom: Any | None = None
     project: Project
 
     @model_validator(mode="after")
@@ -76,20 +84,7 @@ class AreaRead(AreaBase):
 
 
 class AreaCreate(AreaBase):
-    geom: Any
-
-    @model_validator(mode="after")
-    def convert_json_to_wkt(cls, values: Any) -> Any:
-        """Convert the WKBElement to a shapely mapping"""
-
-        if isinstance(values.geom, list):
-            polygon = shapely.geometry.Polygon(values.geom)
-            oriented_polygon = shapely.geometry.polygon.orient(
-                polygon, sign=1.0
-            )
-            values.geom = oriented_polygon.wkt
-
-        return values
+    pass
 
 
 class AreaUpdate(AreaBase):

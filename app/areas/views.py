@@ -4,13 +4,55 @@ from app.areas.models import (
     AreaCreate,
     AreaUpdate,
 )
+from app.soil.profiles.models import SoilProfile
+from app.plots.models import Plot
+from app.sensors.models import Sensor
 from app.db import get_session, AsyncSession
 from fastapi import Depends, APIRouter, Query, Response, HTTPException
 from uuid import UUID
 from app.crud import CRUD
+from sqlmodel import select
+from sqlalchemy import select
+from geoalchemy2 import Geography
+from geoalchemy2.functions import ST_ConvexHull, ST_Collect, ST_Transform
+from sqlalchemy.sql import select as sql_select
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.sql.expression import func
+from sqlalchemy import union_all
 
 router = APIRouter()
 crud = CRUD(Area, AreaRead, AreaCreate, AreaUpdate)
+
+
+async def get_convex_hull(session: AsyncSession):
+    # Define the subqueries for each table
+    plot_subquery = select(
+        Area.id.label("id"), ST_Transform(Plot.geom, 2056).label("geom")
+    ).join(Plot, Area.id == Plot.area_id)
+
+    soilprofile_subquery = select(
+        Area.id.label("id"), ST_Transform(SoilProfile.geom, 2056).label("geom")
+    ).join(SoilProfile, Area.id == SoilProfile.area_id)
+
+    sensor_subquery = select(
+        Area.id.label("id"), ST_Transform(Sensor.geom, 2056).label("geom")
+    ).join(Sensor, Area.id == Sensor.area_id)
+
+    # Combine the subqueries using UNION ALL
+    combined_subquery = union_all(
+        plot_subquery, soilprofile_subquery, sensor_subquery
+    ).subquery()
+
+    # Define the main query to group by area id and compute the convex hull
+    main_query = select(
+        combined_subquery.c.id,
+        ST_Transform(
+            ST_ConvexHull(ST_Collect(combined_subquery.c.geom)), 4326
+        ).label("convex_hull"),
+    ).group_by(combined_subquery.c.id)
+
+    geometry_results = await session.exec(main_query)
+    return geometry_results.all()
 
 
 async def get_count(
@@ -44,7 +86,17 @@ async def get_data(
         session=session,
     )
 
-    return res
+    geometry = await get_convex_hull(session)
+
+    area_objs = []
+    for area in res:
+        area = AreaRead.model_validate(area)
+        for geom in geometry:
+            if area.id == geom.id:
+                area.geom = geom.convex_hull
+        area_objs.append(area)
+
+    return area_objs
 
 
 async def get_one(
@@ -55,6 +107,15 @@ async def get_one(
 
     if not res:
         raise HTTPException(status_code=404, detail=f"ID: {area_id} not found")
+
+    geometry = await get_convex_hull(session)
+
+    for geom in geometry:
+        if res.id == geom.id:
+            res = AreaRead.model_validate(res)
+            res.geom = geom.convex_hull
+            break
+
     return res
 
 

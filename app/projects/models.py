@@ -19,7 +19,10 @@ class ProjectBase(SQLModel):
 
 
 class Project(ProjectBase, table=True):
-    __table_args__ = (UniqueConstraint("id"),)
+    __table_args__ = (
+        UniqueConstraint("id"),
+        UniqueConstraint("name"),
+    )
     iterator: int = Field(
         default=None,
         nullable=False,

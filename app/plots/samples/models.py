@@ -122,6 +122,12 @@ class PlotSampleBase(SQLModel):
         title="Iron (Fe) in ug/g",
         description="Iron content in micrograms per gram (ug/g)",
     )
+    na_ug_per_g: float | None = Field(
+        default=None,
+        nullable=True,
+        title="Sodium (Na) in ug/g",
+        description="Sodium content in micrograms per gram (ug/g)",
+    )
     al_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
@@ -179,7 +185,14 @@ class PlotSampleBase(SQLModel):
 
 
 class PlotSample(PlotSampleBase, table=True):
-    __table_args__ = (UniqueConstraint("id"),)
+    __table_args__ = (
+        UniqueConstraint("id"),
+        UniqueConstraint(
+            "name",
+            "plot_id",
+            name="unique_plot_sample",
+        ),
+    )
     iterator: int = Field(
         default=None,
         nullable=False,
@@ -210,3 +223,7 @@ class PlotSampleCreate(PlotSampleBase):
 
 class PlotSampleUpdate(PlotSampleBase):
     pass
+
+
+class PlotSampleCreateBatch(SQLModel):
+    attachment: str  # Base64 encoded attachment

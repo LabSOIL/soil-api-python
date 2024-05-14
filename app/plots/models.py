@@ -31,12 +31,6 @@ class PlotBase(SQLModel):
         index=True,
         foreign_key="area.id",
     )
-    soil_type_id: UUID | None = Field(
-        default=None,
-        nullable=True,
-        index=True,
-        foreign_key="soiltype.id",
-    )
     gradient: str = Field(
         index=True,
         nullable=False,
@@ -50,10 +44,16 @@ class PlotBase(SQLModel):
     aspect: str | None = Field(
         default=None,
     )
-    created_on: datetime.datetime | None = Field(
+    created_on: datetime.date | None = Field(
         None,
     )
-    slope: float | None = Field(
+    slope: str | None = Field(
+        default=None,
+    )
+    weather: str | None = Field(
+        default=None,
+    )
+    lithology: str | None = Field(
         default=None,
     )
 
@@ -66,6 +66,10 @@ class Plot(PlotBase, table=True):
             "area_id",
             "gradient",
             name="unique_plot",
+        ),
+        UniqueConstraint(
+            "name",
+            name="unique_plot_name",
         ),
     )
     iterator: int = Field(
@@ -84,10 +88,6 @@ class Plot(PlotBase, table=True):
         default=None, sa_column=Column(Geometry("POINTZ", srid=config.SRID))
     )
     area: Area = Relationship(
-        sa_relationship_kwargs={"lazy": "selectin"},
-        back_populates="plots",
-    )
-    soil_type: "SoilType" = Relationship(
         sa_relationship_kwargs={"lazy": "selectin"},
         back_populates="plots",
     )
@@ -202,3 +202,7 @@ class PlotUpdate(PlotBase):
         values.geom = point.wkt
 
         return values
+
+
+class PlotCreateBatch(SQLModel):
+    attachment: str  # Base64 encoded attachment
