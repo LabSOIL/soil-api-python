@@ -14,11 +14,17 @@ from app.crud import CRUD
 from sqlmodel import select
 from sqlalchemy import select
 from geoalchemy2 import Geography
-from geoalchemy2.functions import ST_ConvexHull, ST_Collect, ST_Transform
+from geoalchemy2.functions import (
+    ST_ConvexHull,
+    ST_Collect,
+    ST_Transform,
+    ST_Buffer,
+)
 from sqlalchemy.sql import select as sql_select
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.sql.expression import func
 from sqlalchemy import union_all
+from app.config import config
 
 router = APIRouter()
 crud = CRUD(Area, AreaRead, AreaCreate, AreaUpdate)
@@ -27,15 +33,17 @@ crud = CRUD(Area, AreaRead, AreaCreate, AreaUpdate)
 async def get_convex_hull(session: AsyncSession):
     # Define the subqueries for each table
     plot_subquery = select(
-        Area.id.label("id"), ST_Transform(Plot.geom, 2056).label("geom")
+        Area.id.label("id"), ST_Transform(Plot.geom, config.SRID).label("geom")
     ).join(Plot, Area.id == Plot.area_id)
 
     soilprofile_subquery = select(
-        Area.id.label("id"), ST_Transform(SoilProfile.geom, 2056).label("geom")
+        Area.id.label("id"),
+        ST_Transform(SoilProfile.geom, config.SRID).label("geom"),
     ).join(SoilProfile, Area.id == SoilProfile.area_id)
 
     sensor_subquery = select(
-        Area.id.label("id"), ST_Transform(Sensor.geom, 2056).label("geom")
+        Area.id.label("id"),
+        ST_Transform(Sensor.geom, config.SRID).label("geom"),
     ).join(Sensor, Area.id == Sensor.area_id)
 
     # Combine the subqueries using UNION ALL
@@ -44,10 +52,15 @@ async def get_convex_hull(session: AsyncSession):
     ).subquery()
 
     # Define the main query to group by area id and compute the convex hull
+    # with a 100m buffer
     main_query = select(
         combined_subquery.c.id,
         ST_Transform(
-            ST_ConvexHull(ST_Collect(combined_subquery.c.geom)), 4326
+            ST_Buffer(
+                ST_ConvexHull(ST_Collect(combined_subquery.c.geom)),
+                config.CONVEX_HULL_BUFFER,
+            ),
+            4326,
         ).label("convex_hull"),
     ).group_by(combined_subquery.c.id)
 

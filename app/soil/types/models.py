@@ -1,6 +1,8 @@
 from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
 from uuid import UUID, uuid4
 from typing import TYPE_CHECKING
+import datetime
+from sqlalchemy.sql import func
 
 if TYPE_CHECKING:
     from app.soil.profiles.models import SoilProfile
@@ -10,6 +12,15 @@ if TYPE_CHECKING:
 class SoilTypeBase(SQLModel):
     name: str = Field(default=None, index=True)
     description: str
+    last_updated: datetime.datetime = Field(
+        default_factory=datetime.datetime.now,
+        title="Last Updated",
+        description="Date and time when the record was last updated",
+        sa_column_kwargs={
+            "onupdate": func.now(),
+            "server_default": func.now(),
+        },
+    )
 
 
 class SoilType(SoilTypeBase, table=True):

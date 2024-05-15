@@ -4,6 +4,7 @@ from app.plots.models import (
     PlotRead,
     PlotUpdate,
     PlotCreateBatch,
+    PlotCreateBatchRead,
 )
 from app.projects.models import Project
 from app.db import get_session, AsyncSession
@@ -115,15 +116,11 @@ async def create_plot(
     return obj
 
 
-@router.post(
-    "/batch",
-    response_model=Any,
-    # response_model=list[PlotSampleRead],
-)
+@router.post("/batch", response_model=PlotCreateBatchRead)
 async def create_plot_batch(
     plot: PlotCreateBatch,
     session: AsyncSession = Depends(get_session),
-) -> PlotRead:
+) -> PlotCreateBatchRead:
     """Creates plots from a csv
 
     Before committing to db we need to parse the csv file and create a
@@ -138,26 +135,15 @@ async def create_plot_batch(
             status_code=400,
             detail=f"Invalid file type: {dtype}. Must be a csv file.",
         )
-    # print(rawdata)
+
     lines = rawdata.decode("utf-8").split("\n")
     csv_header = tuple([line.strip() for line in lines[0].split(",")])
 
-    # [print(dtype, line) for line in lines]
     header = list(PlotCreate.model_fields.keys())
-    # header.remove("plot_id")
+
     header.append("project_name")
     header.append("catchment")
     header.append("gradient")
-
-    # Add 'project_name' to header
-    # Remove 'plot_id' from header
-    # header
-    print("CLASS", header)
-    print("INCOMING", csv_header)
-
-    for header_line in lines[0].split(","):
-        if header_line.strip() not in header:
-            print(f"Invalid header: {header_line}")
 
     objs = []
     errors = []
@@ -178,7 +164,6 @@ async def create_plot_batch(
         area = query.one_or_none()
         if not area:
             # Create Area name from catchment, gradient and plot id
-
             errors.append(
                 {
                     "csv_line": i,
@@ -198,37 +183,36 @@ async def create_plot_batch(
         )
         # Check that the data doesn't already exist in the DB
         query = await session.exec(
-            select(Plot).where(
-                Plot.area_id == data["area_id"],
-                Plot.plot_iterator == int(data["id"]),
-            )
+            select(Plot)
+            .where(Plot.area_id == data["area_id"])
+            .where(Plot.plot_iterator == int(data["id"]))
+            .where(func.lower(Plot.gradient) == data["gradient"].lower())
         )
+
         if query.one_or_none():
             errors.append(
                 {
                     "csv_line": i,
                     "message": (
-                        f"Duplicate record: {data['plot_id']} {data['name']}"
+                        f"Duplicate record: {data['area_name']} {data['gradient']} {data['id']}"
                     ),
                 }
             )
             continue
 
         create_obj = PlotCreate.model_validate(data)
-        # obj = PlotSample.model_validate(plot_sample)
         objs.append(create_obj)
-    print("OBJS", objs)
-    print("Objs to create:", len(objs))
 
     # Raise exception if any errors as to not make any changes to the DB
     if errors:
         raise HTTPException(
             status_code=400,
-            detail={
-                "success": False,
-                "message": "Errors in CSV file",
-                "errors": errors,
-            },
+            detail=PlotCreateBatchRead(
+                success=False,
+                message="Errors in CSV file",
+                errors=errors,
+                qty_added=0,
+            ).model_dump(),
         )
 
     for obj in objs:
@@ -236,14 +220,13 @@ async def create_plot_batch(
         session.add(db_obj)
 
     await session.commit()
-    return True
 
-    # session.add(obj)
-
-    # await session.commit()
-    # await session.refresh(obj)
-
-    # return obj
+    return PlotCreateBatchRead(
+        success=True,
+        message="Plots added successfully",
+        errors=[],
+        qty_added=len(objs),
+    )
 
 
 @router.put("/{plot_id}", response_model=PlotRead)

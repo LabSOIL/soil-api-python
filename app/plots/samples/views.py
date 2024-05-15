@@ -4,6 +4,7 @@ from app.plots.samples.models import (
     PlotSampleCreate,
     PlotSampleUpdate,
     PlotSampleCreateBatch,
+    PlotSampleCreateBatchRead,
 )
 from app.plots.models import Plot
 from app.areas.models import Area
@@ -105,15 +106,11 @@ async def create_plot_sample(
     return obj
 
 
-@router.post(
-    "/batch",
-    response_model=Any,
-    # response_model=list[PlotSampleRead],
-)
+@router.post("/batch", response_model=PlotSampleCreateBatchRead)
 async def create_plot_sample_batch(
     plot_sample: PlotSampleCreateBatch,
     session: AsyncSession = Depends(get_session),
-) -> PlotSampleRead:
+) -> PlotSampleCreateBatchRead:
     """Creates a plot sample from a csv
 
     Before committing to db we need to parse the csv file and create a
@@ -212,6 +209,7 @@ async def create_plot_sample_batch(
         data = {k: v for k, v in data.items() if v}
         try:
             create_obj = PlotSampleCreate.model_validate(data)
+            db_obj = PlotSample.model_validate(create_obj)
         except Exception as e:
             error_message = e.errors()[0]
             errors.append(
@@ -225,23 +223,28 @@ async def create_plot_sample_batch(
                 }
             )
             continue
-        # print("OBJECT!", create_obj)
-        objs.append(create_obj)
-        # objs.append(obj)
-    # print("OBJS", objs)
-    # print("ERRORS", errors)
+        objs.append(db_obj)
 
     if errors:
         raise HTTPException(
             status_code=400,
-            detail={
-                "success": False,
-                "message": "Errors in CSV file",
-                "errors": errors,
-            },
+            detail=PlotSampleCreateBatchRead(
+                success=False,
+                message="Error creating samples",
+                errors=errors,
+                qty_added=0,
+            ).model_dump(),
         )
 
-    return errors
+    session.add_all(objs)
+    await session.commit()
+
+    return PlotSampleCreateBatchRead(
+        success=True,
+        message="Samples created successfully",
+        errors=errors,
+        qty_added=len(objs),
+    )
     # obj = PlotSample.model_validate(plot_sample)
 
     # session.add(obj)

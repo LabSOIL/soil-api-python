@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 import datetime
 import shapely
 from app.config import config
+from sqlalchemy.sql import func
 
 
 class TransectBase(SQLModel):
@@ -20,6 +21,15 @@ class TransectBase(SQLModel):
         default=None,
         nullable=True,
         index=True,
+    )
+    last_updated: datetime.datetime = Field(
+        default_factory=datetime.datetime.now,
+        title="Last Updated",
+        description="Date and time when the record was last updated",
+        sa_column_kwargs={
+            "onupdate": func.now(),
+            "server_default": func.now(),
+        },
     )
 
 
@@ -71,6 +81,15 @@ class TransectNodeBase(SQLModel):
         foreign_key="transect.id",
         default=None,
         index=True,
+    )
+    last_updated: datetime.datetime = Field(
+        default_factory=datetime.datetime.now,
+        title="Last Updated",
+        description="Date and time when the record was last updated",
+        sa_column_kwargs={
+            "onupdate": func.now(),
+            "server_default": func.now(),
+        },
     )
 
 

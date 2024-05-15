@@ -5,6 +5,8 @@ from typing import Any
 from uuid import UUID, uuid4
 from enum import Enum
 from app.plots.models import Plot
+import datetime
+from sqlalchemy.sql import func
 
 
 class PlotSampleNames(str, Enum):
@@ -18,15 +20,25 @@ class PlotSampleBase(SQLModel):
         default=None,
         index=True,
     )
-    upper_depth_cm: float = Field(
+    created_on: datetime.date | None = Field(
         default=None,
+    )
+    last_updated: datetime.datetime = Field(
+        default_factory=datetime.datetime.now,
+        title="Last Updated",
+        description="Date and time when the record was last updated",
+        sa_column_kwargs={
+            "onupdate": func.now(),
+            "server_default": func.now(),
+        },
+    )
+    upper_depth_cm: float = Field(
         nullable=False,
         title="Upper Depth (cm)",
         description="Upper depth in centimeters from the surface where the "
         "sample was taken",
     )
     lower_depth_cm: float = Field(
-        default=None,
         nullable=False,
         title="Lower Depth (cm)",
         description="Lower depth in centimeters from the surface where the "
@@ -40,18 +52,23 @@ class PlotSampleBase(SQLModel):
         description="Unique identifier for the plot",
     )
     sample_weight: float = Field(
-        default=None,
         nullable=False,
         title="Sample Weight (g)",
         description="Weight of the complete sample collected in the field "
         "(in grams)",
     )
-    subsample_weight: float | None = Field(
-        default=None,
-        nullable=True,
+    subsample_weight: float = Field(
+        nullable=False,
         title="Subsample Weight",
         description="Weight of the subsample taken for pH, RH, and LOI "
         "measurements. May contain additional information like replicates",
+    )
+    subsample_replica_weight: float | None = Field(
+        default=None,
+        nullable=True,
+        title="Subsample Replica Weight",
+        description="Weight of the subsample replica taken for pH, RH, and "
+        "LOI measurements",
     )
     ph: float | None = Field(
         default=None,
@@ -227,3 +244,10 @@ class PlotSampleUpdate(PlotSampleBase):
 
 class PlotSampleCreateBatch(SQLModel):
     attachment: str  # Base64 encoded attachment
+
+
+class PlotSampleCreateBatchRead(SQLModel):
+    success: bool
+    message: str
+    errors: list[Any] = []
+    qty_added: int
