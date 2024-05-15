@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import datetime
 import pyproj
 from app.config import config
+from sqlalchemy.sql import func
 
 if TYPE_CHECKING:
     from app.areas.models import Area
@@ -22,6 +23,15 @@ class SensorBase(SQLModel):
         default=None,
         nullable=True,
         index=True,
+    )
+    last_updated: datetime.datetime = Field(
+        default_factory=datetime.datetime.now,
+        title="Last Updated",
+        description="Date and time when the record was last updated",
+        sa_column_kwargs={
+            "onupdate": func.now(),
+            "server_default": func.now(),
+        },
     )
 
 
@@ -92,6 +102,15 @@ class SensorDataBase(SQLModel):
     error_flat: int | None = Field(
         index=False,
         nullable=True,
+    )
+    last_updated: datetime.datetime = Field(
+        default_factory=datetime.datetime.now,
+        title="Last Updated",
+        description="Date and time when the record was last updated",
+        sa_column_kwargs={
+            "onupdate": func.now(),
+            "server_default": func.now(),
+        },
     )
 
 

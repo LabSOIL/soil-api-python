@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from app.soil.types.models import SoilType
 from app.areas.models import Area, AreaRead
 from app.config import config
+from sqlalchemy.sql import func
 
 if TYPE_CHECKING:
     from app.plots.samples.models import PlotSample
@@ -55,6 +56,15 @@ class PlotBase(SQLModel):
     )
     lithology: str | None = Field(
         default=None,
+    )
+    last_updated: datetime.datetime = Field(
+        default_factory=datetime.datetime.now,
+        title="Last Updated",
+        description="Date and time when the record was last updated",
+        sa_column_kwargs={
+            "onupdate": func.now(),
+            "server_default": func.now(),
+        },
     )
 
 
@@ -206,3 +216,10 @@ class PlotUpdate(PlotBase):
 
 class PlotCreateBatch(SQLModel):
     attachment: str  # Base64 encoded attachment
+
+
+class PlotCreateBatchRead(SQLModel):
+    success: bool
+    message: str
+    errors: list[Any] = []
+    qty_added: int

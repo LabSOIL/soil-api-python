@@ -7,6 +7,8 @@ from sqlmodel import (
 from uuid import uuid4, UUID
 from SecretColors import Palette
 from typing import TYPE_CHECKING
+import datetime
+from sqlalchemy.sql import func
 
 if TYPE_CHECKING:
     from app.areas.models import Area
@@ -16,6 +18,15 @@ class ProjectBase(SQLModel):
     name: str
     description: str | None = None
     color: str = Field(default_factory=Palette().random)
+    last_updated: datetime.datetime = Field(
+        default_factory=datetime.datetime.now,
+        title="Last Updated",
+        description="Date and time when the record was last updated",
+        sa_column_kwargs={
+            "onupdate": func.now(),
+            "server_default": func.now(),
+        },
+    )
 
 
 class Project(ProjectBase, table=True):

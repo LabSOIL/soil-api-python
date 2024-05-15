@@ -7,6 +7,8 @@ from pydantic import model_validator
 from typing import TYPE_CHECKING
 from app.projects.models import Project
 from app.config import config
+import datetime
+from sqlalchemy.sql import func
 
 if TYPE_CHECKING:
     from app.plots.models import Plot
@@ -26,6 +28,15 @@ class AreaBase(SQLModel):
     )
     project_id: UUID = Field(
         nullable=False, index=True, foreign_key="project.id"
+    )
+    last_updated: datetime.datetime = Field(
+        default_factory=datetime.datetime.now,
+        title="Last Updated",
+        description="Date and time when the record was last updated",
+        sa_column_kwargs={
+            "onupdate": func.now(),
+            "server_default": func.now(),
+        },
     )
 
 
