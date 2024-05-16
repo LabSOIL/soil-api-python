@@ -132,8 +132,6 @@ class SoilProfileRead(SoilProfileBase):
     latitude: float | None = None
     longitude: float | None = None
 
-    area: AreaRead
-
     @model_validator(mode="after")
     def convert_wkb_to_x_y(
         cls,
@@ -183,6 +181,17 @@ class SoilProfileRead(SoilProfileBase):
             values.coord_z = None
 
         return values
+
+
+class GenericNameIDModel(SQLModel):
+    name: str
+    id: UUID
+
+
+class SoilProfileReadWithArea(SoilProfileBase):
+    id: UUID
+    area: GenericNameIDModel
+    soil_type: GenericNameIDModel
 
 
 class SoilProfileCreate(SoilProfileBase):

@@ -14,7 +14,9 @@ from app.projects.views import router as projects_router
 
 app = FastAPI()
 
+
 origins = ["*"]
+
 
 app.add_middleware(
     CORSMiddleware,

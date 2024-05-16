@@ -7,12 +7,12 @@ from sqlmodel import SQLModel, Field, Column, UniqueConstraint, Relationship
 from typing import Any, TYPE_CHECKING
 from uuid import UUID, uuid4
 from app.soil.types.models import SoilType
-from app.areas.models import Area, AreaRead
 from app.config import config
 from sqlalchemy.sql import func
 
 if TYPE_CHECKING:
-    from app.plots.samples.models import PlotSample
+    from app.areas.models import Area, AreaRead
+    from app.plots.samples.models import PlotSample, PlotSampleRead
 
 
 class PlotBase(SQLModel):
@@ -97,7 +97,7 @@ class Plot(PlotBase, table=True):
     geom: Any = Field(
         default=None, sa_column=Column(Geometry("POINTZ", srid=config.SRID))
     )
-    area: Area = Relationship(
+    area: "Area" = Relationship(
         sa_relationship_kwargs={"lazy": "selectin"},
         back_populates="plots",
     )
@@ -117,14 +117,12 @@ class PlotRead(PlotBase):
     latitude: float | None = None
     longitude: float | None = None
 
-    area: AreaRead
-
     name: str | None = None
 
     @model_validator(mode="after")
     def convert_wkb_to_x_y(
         cls,
-        values: "PlotRead",
+        values: "PlotReadWithSamples",
     ) -> dict:
         """Form the geometry from the X and Y coordinates"""
 
@@ -170,6 +168,16 @@ class PlotRead(PlotBase):
             values.coord_z = None
 
         return values
+
+
+class PlotReadWithArea(PlotRead):
+    pass
+
+
+class PlotReadWithSamples(PlotReadWithArea):
+    samples: list[Any] = []
+    area: Any
+    # pass
 
 
 class PlotCreate(PlotBase):

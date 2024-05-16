@@ -1,7 +1,7 @@
 from app.plots.models import (
     Plot,
     PlotCreate,
-    PlotRead,
+    PlotReadWithSamples,
     PlotUpdate,
     PlotCreateBatch,
     PlotCreateBatchRead,
@@ -18,7 +18,7 @@ from sqlmodel import select
 from sqlalchemy import func
 
 router = APIRouter()
-crud = CRUD(Plot, PlotRead, PlotCreate, PlotUpdate)
+crud = CRUD(Plot, PlotReadWithSamples, PlotCreate, PlotUpdate)
 
 
 async def get_count(
@@ -66,31 +66,31 @@ async def get_one(
     return res
 
 
-@router.get("/{plot_id}", response_model=PlotRead)
+@router.get("/{plot_id}", response_model=PlotReadWithSamples)
 async def get_plot(
     obj: CRUD = Depends(get_one),
-) -> PlotRead:
+) -> PlotReadWithSamples:
     """Get a plot by id"""
 
     return obj
 
 
-@router.get("", response_model=list[PlotRead])
+@router.get("", response_model=list[PlotReadWithSamples])
 async def get_all_plots(
     response: Response,
     plots: CRUD = Depends(get_data),
     total_count: int = Depends(get_count),
-) -> list[PlotRead]:
+) -> list[PlotReadWithSamples]:
     """Get all Plot data"""
 
     return plots
 
 
-@router.post("", response_model=PlotRead)
+@router.post("", response_model=PlotReadWithSamples)
 async def create_plot(
     create_obj: PlotCreate,
     session: AsyncSession = Depends(get_session),
-) -> PlotRead:
+) -> PlotReadWithSamples:
     """Creates a plot data record"""
 
     plot = create_obj.model_dump()
@@ -229,13 +229,13 @@ async def create_plot_batch(
     )
 
 
-@router.put("/{plot_id}", response_model=PlotRead)
+@router.put("/{plot_id}", response_model=PlotReadWithSamples)
 async def update_plot(
     plot_update: PlotUpdate,
     *,
-    plot: PlotRead = Depends(get_one),
+    plot: PlotReadWithSamples = Depends(get_one),
     session: AsyncSession = Depends(get_session),
-) -> PlotRead:
+) -> PlotReadWithSamples:
     """Update a plot by id"""
 
     update_data = plot_update.model_dump(exclude_unset=True)
@@ -263,7 +263,7 @@ async def update_plot(
 
 @router.delete("/{plot_id}")
 async def delete_plot(
-    plot: PlotRead = Depends(get_one),
+    plot: PlotReadWithSamples = Depends(get_one),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Delete a plot by id"""

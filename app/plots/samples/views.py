@@ -1,5 +1,5 @@
 from app.plots.samples.models import (
-    PlotSampleRead,
+    PlotSampleReadWithPlot,
     PlotSample,
     PlotSampleCreate,
     PlotSampleUpdate,
@@ -19,7 +19,9 @@ from sqlmodel import select
 from sqlalchemy import func
 
 router = APIRouter()
-crud = CRUD(PlotSample, PlotSampleRead, PlotSampleCreate, PlotSampleUpdate)
+crud = CRUD(
+    PlotSample, PlotSampleReadWithPlot, PlotSampleCreate, PlotSampleUpdate
+)
 
 
 async def get_count(
@@ -69,31 +71,31 @@ async def get_one(
     return res
 
 
-@router.get("/{plot_sample_id}", response_model=PlotSampleRead)
+@router.get("/{plot_sample_id}", response_model=PlotSampleReadWithPlot)
 async def get_plot_sample(
     obj: CRUD = Depends(get_one),
-) -> PlotSampleRead:
+) -> PlotSampleReadWithPlot:
     """Get a plot sample by id"""
 
     return obj
 
 
-@router.get("", response_model=list[PlotSampleRead])
+@router.get("", response_model=list[PlotSampleReadWithPlot])
 async def get_all_plot_samples(
     response: Response,
     plot_samples: CRUD = Depends(get_data),
     total_count: int = Depends(get_count),
-) -> list[PlotSampleRead]:
+) -> list[PlotSampleReadWithPlot]:
     """Get all PlotSample data"""
 
     return plot_samples
 
 
-@router.post("", response_model=PlotSampleRead)
+@router.post("", response_model=PlotSampleReadWithPlot)
 async def create_plot_sample(
     plot_sample: PlotSampleCreate,
     session: AsyncSession = Depends(get_session),
-) -> PlotSampleRead:
+) -> PlotSampleReadWithPlot:
     """Creates a plot sample data record"""
 
     obj = PlotSample.model_validate(plot_sample)
@@ -255,13 +257,13 @@ async def create_plot_sample_batch(
     # return obj
 
 
-@router.put("/{plot_sample_id}", response_model=PlotSampleRead)
+@router.put("/{plot_sample_id}", response_model=PlotSampleReadWithPlot)
 async def update_plot_sample(
     plot_sample_update: PlotSampleUpdate,
     *,
-    plot_sample: PlotSampleRead = Depends(get_one),
+    plot_sample: PlotSampleReadWithPlot = Depends(get_one),
     session: AsyncSession = Depends(get_session),
-) -> PlotSampleRead:
+) -> PlotSampleReadWithPlot:
     """Update a plot sample by id"""
 
     update_data = plot_sample_update.model_dump(exclude_unset=True)
@@ -276,7 +278,7 @@ async def update_plot_sample(
 
 @router.delete("/{plot_sample_id}")
 async def delete_plot_sample(
-    plot_sample: PlotSampleRead = Depends(get_one),
+    plot_sample: PlotSampleReadWithPlot = Depends(get_one),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Delete a plot sample by id"""

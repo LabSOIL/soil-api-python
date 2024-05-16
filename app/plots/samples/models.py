@@ -4,7 +4,7 @@ from sqlmodel import SQLModel, Field, Column, UniqueConstraint, Relationship
 from typing import Any
 from uuid import UUID, uuid4
 from enum import Enum
-from app.plots.models import Plot
+from app.plots.models import Plot, PlotReadWithArea
 import datetime
 from sqlalchemy.sql import func
 
@@ -232,6 +232,10 @@ class PlotSample(PlotSampleBase, table=True):
 
 class PlotSampleRead(PlotSampleBase):
     id: UUID
+
+
+class PlotSampleReadWithPlot(PlotSampleRead):
+    plot: "PlotReadWithArea"
 
 
 class PlotSampleCreate(PlotSampleBase):

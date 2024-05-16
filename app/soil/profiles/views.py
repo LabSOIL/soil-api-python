@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from app.soil.profiles.models import (
     SoilProfile,
     SoilProfileCreate,
-    SoilProfileRead,
+    SoilProfileReadWithArea,
     SoilProfileUpdate,
 )
 
@@ -14,7 +14,9 @@ from app.areas.models import Area
 from sqlmodel import select
 
 router = APIRouter()
-crud = CRUD(SoilProfile, SoilProfileRead, SoilProfileCreate, SoilProfileUpdate)
+crud = CRUD(
+    SoilProfile, SoilProfileReadWithArea, SoilProfileCreate, SoilProfileUpdate
+)
 
 
 async def get_count(
@@ -64,33 +66,33 @@ async def get_one(
     return res
 
 
-@router.get("/{soil_profile_id}", response_model=SoilProfileRead)
+@router.get("/{soil_profile_id}", response_model=SoilProfileReadWithArea)
 async def get_soil_profile(
     # session: AsyncSession = Depends(get_session),
     # *,
     obj: CRUD = Depends(get_one),
-) -> SoilProfileRead:
+) -> SoilProfileReadWithArea:
     """Get a soil profile by id"""
 
     return obj
 
 
-@router.get("", response_model=list[SoilProfileRead])
+@router.get("", response_model=list[SoilProfileReadWithArea])
 async def get_all_soil_profiles(
     response: Response,
     soil_profiles: CRUD = Depends(get_data),
     total_count: int = Depends(get_count),
-) -> list[SoilProfileRead]:
+) -> list[SoilProfileReadWithArea]:
     """Get all SoilProfile data"""
 
     return soil_profiles
 
 
-@router.post("", response_model=SoilProfileRead)
+@router.post("", response_model=SoilProfileReadWithArea)
 async def create_soil_profile(
     soil_profile: SoilProfileCreate,
     session: AsyncSession = Depends(get_session),
-) -> SoilProfileRead:
+) -> SoilProfileReadWithArea:
     """Creates a soil profile data record"""
 
     profile = soil_profile.model_dump()
@@ -116,13 +118,13 @@ async def create_soil_profile(
     return obj
 
 
-@router.put("/{soil_profile_id}", response_model=SoilProfileRead)
+@router.put("/{soil_profile_id}", response_model=SoilProfileReadWithArea)
 async def update_soil_profile(
     soil_profile_update: SoilProfileUpdate,
     *,
-    soil_profile: SoilProfileRead = Depends(get_one),
+    soil_profile: SoilProfileReadWithArea = Depends(get_one),
     session: AsyncSession = Depends(get_session),
-) -> SoilProfileRead:
+) -> SoilProfileReadWithArea:
     """Update a soil profile by id"""
 
     update_data = soil_profile_update.model_dump(exclude_unset=True)
@@ -150,7 +152,7 @@ async def update_soil_profile(
 
 @router.delete("/profiles/{soil_profile_id}")
 async def delete_soil_profile(
-    soil_profile: SoilProfileRead = Depends(get_one),
+    soil_profile: SoilProfileReadWithArea = Depends(get_one),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Delete a soil profile by id"""
