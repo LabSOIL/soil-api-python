@@ -78,10 +78,15 @@ async def get_plot(
 @router.get("", response_model=list[PlotReadWithSamples])
 async def get_all_plots(
     response: Response,
-    plots: CRUD = Depends(get_data),
+    plots: Plot = Depends(get_data),
     total_count: int = Depends(get_count),
+    include_image: bool = Query(False, description="Include image data"),
 ) -> list[PlotReadWithSamples]:
     """Get all Plot data"""
+
+    if not include_image:
+        for plot in plots:
+            plot.image = None
 
     return plots
 

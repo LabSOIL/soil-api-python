@@ -16,6 +16,8 @@ from uuid import uuid4, UUID
 from app.areas.models import Area, AreaRead
 from app.config import config
 from sqlalchemy.sql import func
+from app.utils.funcs import resize_base64_image
+
 
 if TYPE_CHECKING:
     from app.soil.types.models import SoilType
@@ -79,6 +81,14 @@ class SoilProfileBase(SQLModel):
             "onupdate": func.now(),
             "server_default": func.now(),
         },
+    )
+    soil_diagram: str | None = Field(
+        default=None,
+        description="Base64 encoded diagram of the soil profile",
+    )
+    photo: str | None = Field(
+        default=None,
+        description="Base64 encoded photo of the soil profile",
     )
 
     class Config:
@@ -188,7 +198,7 @@ class GenericNameIDModel(SQLModel):
     id: UUID
 
 
-class SoilProfileReadWithArea(SoilProfileBase):
+class SoilProfileReadWithArea(SoilProfileRead):
     id: UUID
     area: GenericNameIDModel
     soil_type: GenericNameIDModel
@@ -216,6 +226,22 @@ class SoilProfileCreate(SoilProfileBase):
 
         return values
 
+    @model_validator(mode="after")
+    def resize_images(cls, values: Any) -> Any:
+        """Resize the images"""
+
+        if values.photo is not None:
+            values.photo = resize_base64_image(
+                values.photo, config.IMAGE_MAX_SIZE
+            )
+
+        if values.soil_diagram is not None:
+            values.soil_diagram = resize_base64_image(
+                values.soil_diagram, config.IMAGE_MAX_SIZE
+            )
+
+        return values
+
 
 class SoilProfileUpdate(SoilProfileBase):
     coord_x: float | None
@@ -227,10 +253,26 @@ class SoilProfileUpdate(SoilProfileBase):
     @model_validator(mode="after")
     def convert_x_y_to_wkt(cls, values: Any) -> Any:
         """Convert the X and Y coordinates to a WKT geometry"""
-
+        print(values.coord_x, values.coord_y, values.coord_z)
         point = shapely.geometry.Point(
             values.coord_x, values.coord_y, values.coord_z
         )
         values.geom = point.wkt
+
+        return values
+
+    @model_validator(mode="after")
+    def resize_images(cls, values: Any) -> Any:
+        """Resize the images"""
+
+        if values.photo is not None:
+            values.photo = resize_base64_image(
+                values.photo, config.IMAGE_MAX_SIZE
+            )
+
+        if values.soil_diagram is not None:
+            values.soil_diagram = resize_base64_image(
+                values.soil_diagram, config.IMAGE_MAX_SIZE
+            )
 
         return values

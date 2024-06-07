@@ -80,10 +80,16 @@ async def get_soil_profile(
 @router.get("", response_model=list[SoilProfileReadWithArea])
 async def get_all_soil_profiles(
     response: Response,
-    soil_profiles: CRUD = Depends(get_data),
+    soil_profiles: SoilProfile = Depends(get_data),
     total_count: int = Depends(get_count),
+    include_image_data: bool = Query(False, description="Include image data"),
 ) -> list[SoilProfileReadWithArea]:
     """Get all SoilProfile data"""
+
+    if not include_image_data:
+        for soil_profile in soil_profiles:
+            soil_profile.soil_diagram = None
+            soil_profile.photo = None
 
     return soil_profiles
 

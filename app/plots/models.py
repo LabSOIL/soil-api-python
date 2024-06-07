@@ -7,8 +7,10 @@ from sqlmodel import SQLModel, Field, Column, UniqueConstraint, Relationship
 from typing import Any, TYPE_CHECKING
 from uuid import UUID, uuid4
 from app.soil.types.models import SoilType
+from app.utils.funcs import resize_base64_image
 from app.config import config
 from sqlalchemy.sql import func
+
 
 if TYPE_CHECKING:
     from app.areas.models import Area, AreaRead
@@ -65,6 +67,10 @@ class PlotBase(SQLModel):
             "onupdate": func.now(),
             "server_default": func.now(),
         },
+    )
+    image: str | None = Field(
+        default=None,
+        description="Base64 encoded image",
     )
 
 
@@ -177,7 +183,6 @@ class PlotReadWithArea(PlotRead):
 class PlotReadWithSamples(PlotReadWithArea):
     samples: list[Any] = []
     area: Any
-    # pass
 
 
 class PlotCreate(PlotBase):
@@ -202,6 +207,17 @@ class PlotCreate(PlotBase):
 
         return values
 
+    @model_validator(mode="after")
+    def resize_image(cls, values: Any) -> Any:
+        """Resize the image"""
+
+        if values.image is not None:
+            values.image = resize_base64_image(
+                values.image, config.IMAGE_MAX_SIZE
+            )
+
+        return values
+
 
 class PlotUpdate(PlotBase):
     coord_x: float | None
@@ -218,6 +234,17 @@ class PlotUpdate(PlotBase):
             values.coord_x, values.coord_y, values.coord_z
         )
         values.geom = point.wkt
+
+        return values
+
+    @model_validator(mode="after")
+    def resize_image(cls, values: Any) -> Any:
+        """Resize the image"""
+
+        if values.image is not None:
+            values.image = resize_base64_image(
+                values.image, config.IMAGE_MAX_SIZE
+            )
 
         return values
 
