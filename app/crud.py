@@ -80,6 +80,34 @@ class CRUD:
 
         if len(filter):
             for field, value in filter.items():
+                if field == "q":
+                    # If the field is 'q', do a full-text search on the
+                    # searchable fields (string fields only, but never UUIDs
+                    # or timestamps)
+                    or_conditions = []
+                    for (
+                        prop_name,
+                        prop_details,
+                    ) in self.db_model.model_json_schema()[
+                        "properties"
+                    ].items():
+                        if (
+                            prop_details.get("type") == "string"
+                            and prop_name not in self.exact_match_fields
+                            and prop_details.get("format") != "uuid"
+                            and prop_details.get("format") != "date-time"
+                        ):
+                            # Apply a LIKE filter for string matching case
+                            # insensitive
+                            or_conditions.append(
+                                getattr(self.db_model, prop_name).ilike(
+                                    f"%{str(value)}%"
+                                )
+                            )
+
+                    query = query.filter(or_(*or_conditions))
+                    continue
+
                 if field in self.exact_match_fields:
                     if isinstance(value, list):
                         # Combine multiple filters with OR
@@ -156,6 +184,33 @@ class CRUD:
         query = select(func.count(self.db_model.iterator))
         if len(filter):
             for field, value in filter.items():
+                if field == "q":
+                    # If the field is 'q', do a full-text search on the
+                    # searchable fields (string fields only, but never UUIDs
+                    # or timestamps)
+                    or_conditions = []
+
+                    for (
+                        prop_name,
+                        prop_details,
+                    ) in self.db_model.model_json_schema()[
+                        "properties"
+                    ].items():
+                        if (
+                            prop_details.get("type") == "string"
+                            and prop_name not in self.exact_match_fields
+                            and prop_details.get("format") != "uuid"
+                            and prop_details.get("format") != "date-time"
+                        ):
+                            or_conditions.append(
+                                getattr(self.db_model, prop_name).ilike(
+                                    f"%{str(value)}%"
+                                )
+                            )
+
+                    query = query.filter(or_(*or_conditions))
+                    continue
+
                 if field in self.exact_match_fields:
                     if isinstance(value, list):
                         # Combine multiple filters with OR
