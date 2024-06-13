@@ -1,4 +1,4 @@
-from app.transects.models import (
+from app.transects.models.transects import (
     TransectRead,
     Transect,
     TransectCreate,

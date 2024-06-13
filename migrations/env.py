@@ -15,6 +15,8 @@ from app.soil.types.models import SoilType  # noqa
 from app.plots.models import Plot  # noqa
 from app.plots.samples.models import PlotSample  # noqa
 from app.projects.models import Project  # noqa
+from app.transects.models.transects import Transect  # noqa
+from app.transects.models.nodes import TransectNode  # noqa
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
