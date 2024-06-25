@@ -8,8 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
 - Fulltext query on `str` fields in the database when using `q` filter.
+- Delete many functionality for all tables.
+- Get elevation on `plot` table if elevation (`coord_z`) is set to 0.
+
+### Changed
+- Set create many on `plot` table with list of records instead of CSV.
+- Enum field for `plot` table on Gradient. DB migration reflects addition of
+Enum field.
+
 
 ## [1.1.2] - 2024-06-10
 

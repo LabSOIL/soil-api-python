@@ -18,6 +18,7 @@ from geoalchemy2.functions import (
     ST_ConvexHull,
     ST_Collect,
     ST_Transform,
+    ST_MinimumBoundingCircle,
     ST_Buffer,
 )
 from sqlalchemy.sql import select as sql_select
@@ -56,10 +57,7 @@ async def get_convex_hull(session: AsyncSession):
     main_query = select(
         combined_subquery.c.id,
         ST_Transform(
-            ST_Buffer(
-                ST_ConvexHull(ST_Collect(combined_subquery.c.geom)),
-                config.CONVEX_HULL_BUFFER,
-            ),
+            ST_ConvexHull(ST_Collect(combined_subquery.c.geom)),
             4326,
         ).label("convex_hull"),
     ).group_by(combined_subquery.c.id)
@@ -186,6 +184,23 @@ async def update_area(
     await session.refresh(area)
 
     return area
+
+
+@router.delete("/batch", response_model=list[str])
+async def delete_batch(
+    ids: list[UUID],
+    session: AsyncSession = Depends(get_session),
+) -> list[str]:
+    """Delete by a list of ids"""
+
+    for id in ids:
+        obj = await crud.get_model_by_id(model_id=id, session=session)
+        if obj:
+            await session.delete(obj)
+
+    await session.commit()
+
+    return [str(obj_id) for obj_id in ids]
 
 
 @router.delete("/{area_id}")

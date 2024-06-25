@@ -120,6 +120,23 @@ async def update_Project(
     return project
 
 
+@router.delete("/batch", response_model=list[str])
+async def delete_batch(
+    ids: list[UUID],
+    session: AsyncSession = Depends(get_session),
+) -> list[str]:
+    """Delete by a list of ids"""
+
+    for id in ids:
+        obj = await crud.get_model_by_id(model_id=id, session=session)
+        if obj:
+            await session.delete(obj)
+
+    await session.commit()
+
+    return [str(obj_id) for obj_id in ids]
+
+
 @router.delete("/{project_id}")
 async def delete_Project(
     project: ProjectRead = Depends(get_one),

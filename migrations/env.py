@@ -8,6 +8,7 @@ from app.config import config as app_config
 from alembic import context
 from sqlmodel import SQLModel
 from geoalchemy2 import alembic_helpers
+import alembic_postgresql_enum
 from app.areas.models import Area  # noqa
 from app.sensors.models import Sensor  # noqa
 from app.soil.profiles.models import SoilProfile  # noqa

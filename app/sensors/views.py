@@ -333,10 +333,9 @@ async def create_many_sensors_from_gpx(
             )
         gpxdata = gpxpy.parse(rawdata)
 
-
         for waypoint in gpxdata.waypoints:
             # Use Sensorcreate to facilitate the lat/long to geom conversion
-            
+
             obj = SensorCreate(
                 name=waypoint.name,
                 description=waypoint.description,
@@ -396,6 +395,23 @@ async def update_sensor(
     await session.refresh(sensor_db)
 
     return sensor_db
+
+
+@router.delete("/batch", response_model=list[str])
+async def delete_batch(
+    ids: list[UUID],
+    session: AsyncSession = Depends(get_session),
+) -> list[str]:
+    """Delete by a list of ids"""
+
+    for id in ids:
+        obj = await crud.get_model_by_id(model_id=id, session=session)
+        if obj:
+            await session.delete(obj)
+
+    await session.commit()
+
+    return [str(obj_id) for obj_id in ids]
 
 
 @router.delete("/{sensor_id}")

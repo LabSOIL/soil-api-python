@@ -3,6 +3,7 @@ from sqlmodel import select, Session
 from main import app
 from db import get_session, AsyncSession
 from areas.models import Area, AreaCreate, AreaRead
+from uuid import UUID
 
 router = APIRouter()
 
@@ -72,11 +73,22 @@ async def update_areas(
     pass
 
 
-@router.delete("/")
-async def delete_areas(
+@router.delete("/batch", response_model=list[str])
+async def delete_batch(
+    area_ids: list[UUID],
     session: AsyncSession = Depends(get_session),
-) -> None:
+) -> list[str]:
+    """Delete by a list of ids"""
     pass
+
+    # for id in ids:
+    #     obj = await crud.get_model_by_id(model_id=id, session=session)
+    #     if obj:
+    #         await session.delete(obj)
+
+    # await session.commit()
+
+    # return [str(obj_id) for obj_id in ids]
 
 
 @router.delete("/{area_id}", response_model=AreaRead)

@@ -3,7 +3,14 @@ import datetime
 import pyproj
 from geoalchemy2 import Geometry, WKBElement
 from pydantic import model_validator
-from sqlmodel import SQLModel, Field, Column, UniqueConstraint, Relationship
+from sqlmodel import (
+    SQLModel,
+    Field,
+    Column,
+    UniqueConstraint,
+    Relationship,
+    Enum,
+)
 from typing import Any, TYPE_CHECKING
 from uuid import UUID, uuid4
 from app.utils.funcs import resize_base64_image
@@ -11,10 +18,16 @@ from app.config import config
 from sqlalchemy.sql import func
 from app.transects.models.nodes import TransectNode
 from app.transects.models.transects import Transect
+import enum
 
 if TYPE_CHECKING:
     from app.areas.models import Area
     from app.plots.samples.models import PlotSample
+
+
+class GradientChoices(str, enum.Enum):
+    flat = "flat"
+    slope = "slope"
 
 
 class PlotBase(SQLModel):
@@ -34,9 +47,12 @@ class PlotBase(SQLModel):
         index=True,
         foreign_key="area.id",
     )
-    gradient: str = Field(
-        index=True,
-        nullable=False,
+    gradient: GradientChoices = Field(
+        sa_column=Column(
+            Enum(GradientChoices),
+            nullable=False,
+            index=True,
+        ),
     )
     vegetation_type: str | None = Field(
         default=None,
@@ -191,9 +207,12 @@ class PlotReadWithSamples(PlotReadWithArea):
 
 
 class PlotCreate(PlotBase):
+    area_name: str | None = None  # Endpoint func will find area ID by name
+    area_id: UUID | None = None  # Can be None to allow discovery by name
+
     coord_x: float | None
     coord_y: float | None
-    coord_z: float | None
+    coord_z: float | None = None
 
     geom: Any | None = None
 
@@ -252,14 +271,3 @@ class PlotUpdate(PlotBase):
             )
 
         return values
-
-
-class PlotCreateBatch(SQLModel):
-    attachment: str  # Base64 encoded attachment
-
-
-class PlotCreateBatchRead(SQLModel):
-    success: bool
-    message: str
-    errors: list[Any] = []
-    qty_added: int

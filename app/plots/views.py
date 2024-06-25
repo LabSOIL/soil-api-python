@@ -3,17 +3,22 @@ from app.plots.models import (
     PlotCreate,
     PlotReadWithSamples,
     PlotUpdate,
-    PlotCreateBatch,
-    PlotCreateBatchRead,
 )
 from app.projects.models import Project
 from app.db import get_session, AsyncSession
-from fastapi import Depends, APIRouter, Query, Response, HTTPException
+from fastapi import (
+    Depends,
+    APIRouter,
+    Query,
+    Response,
+    HTTPException,
+    BackgroundTasks,
+)
 from uuid import UUID
 from app.crud import CRUD
 from app.areas.models import Area
 from typing import Any
-from app.utils import decode_base64
+from app.utils.funcs import get_elevation_swisstopo, set_elevation_to_db_obj
 from sqlmodel import select
 from sqlalchemy import func
 
@@ -91,147 +96,82 @@ async def get_all_plots(
     return plots
 
 
-@router.post("", response_model=PlotReadWithSamples)
-async def create_plot(
-    create_obj: PlotCreate,
-    session: AsyncSession = Depends(get_session),
-) -> PlotReadWithSamples:
-    """Creates a plot data record"""
+async def create_one(
+    data: dict,
+    session: AsyncSession,
+    background_tasks: BackgroundTasks,
+) -> Plot:
+    """Create a single plot
 
-    plot = create_obj.model_dump()
+    To be used in both create one and create many endpoints
+    """
 
-    # Get area for the plot
-    res = await session.exec(
-        select(Area).where(Area.id == plot.get("area_id"))
-    )
-    area_obj = res.one()
+    # If area name is given, find area by name (ensuring uniqueness) else id
+    if data.get("area_name"):
+        res = await session.exec(
+            select(Area).where(
+                func.lower(Area.name) == data.get("area_name").lower()
+            )
+        )
+        area_obj = res.one()
+        data["area_id"] = area_obj.id
+    else:
+        res = await session.exec(
+            select(Area).where(Area.id == data.get("area_id"))
+        )
+        area_obj = res.one()
 
-    plot["name"] = (
+    data["name"] = (
         f"{area_obj.name.upper()[0]}"
-        f"{plot['gradient'].upper()[0]}{plot['plot_iterator']:02d}"
+        f"{data['gradient'].upper()[0]}{data['plot_iterator']:02d}"
     )
 
-    obj = Plot.model_validate(plot)
+    obj = Plot.model_validate(data)
 
     session.add(obj)
 
     await session.commit()
     await session.refresh(obj)
 
+    if float(data["coord_z"]) == 0:
+        # Start background process
+        background_tasks.add_task(
+            set_elevation_to_db_obj,
+            id=obj.id,
+            crud_instance=crud,
+            session=session,
+        )
+
     return obj
 
 
-@router.post("/batch", response_model=PlotCreateBatchRead)
-async def create_plot_batch(
-    plot: PlotCreateBatch,
+@router.post("", response_model=PlotReadWithSamples)
+async def create_plot(
+    create_obj: PlotCreate,
+    background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
-) -> PlotCreateBatchRead:
-    """Creates plots from a csv
+) -> PlotReadWithSamples:
+    """Creates a plot data record"""
 
-    Before committing to db we need to parse the csv file and create a
-    PlotSampleCreate object for each line in the csv file.
+    obj = await create_one(create_obj.model_dump(), session, background_tasks)
 
-    We should make sure there are no duplicates in the DB and CSV.
-    """
+    return obj
 
-    rawdata, dtype = decode_base64(plot.attachment)
-    if dtype != "csv":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid file type: {dtype}. Must be a csv file.",
-        )
 
-    lines = rawdata.decode("utf-8").split("\n")
-    csv_header = tuple([line.strip() for line in lines[0].split(",")])
-
-    header = list(PlotCreate.model_fields.keys())
-
-    header.append("project_name")
-    header.append("catchment")
-    header.append("gradient")
+@router.post("/batch", response_model=list[PlotReadWithSamples])
+async def create_many(
+    plots: list[PlotCreate],
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_session),
+) -> list[PlotReadWithSamples]:
+    """Creates plots from a list of PlotCreate objects"""
 
     objs = []
-    errors = []
-    for i, line in enumerate(lines[1:]):
-        # For each line in lines, build a PlotSampleCreate object
-        if not line:  # Skip empty lines
-            continue
+    for plot in plots:
+        obj = await create_one(plot.model_dump(), session, background_tasks)
+        objs.append(obj)
 
-        line = line.split(",")
-        data = dict(zip(csv_header, line))
-
-        query = await session.exec(
-            select(Area)
-            .join(Project)
-            .where(func.lower(Area.name) == data["area_name"].lower())
-            .where(func.lower(Project.name) == data["project_name"].lower())
-        )
-        area = query.one_or_none()
-        if not area:
-            # Create Area name from catchment, gradient and plot id
-            errors.append(
-                {
-                    "csv_line": i,
-                    "message": (
-                        f"Area '{data['area_name']}' not found in "
-                        f"project: '{data['project_name']}'"
-                    ),
-                }
-            )
-            continue
-
-        data["area_id"] = area.id
-        data["plot_iterator"] = int(data["id"])
-        data["name"] = (
-            f"{area.name.upper()[0]}"
-            f"{data['gradient'].upper()[0]}{data['plot_iterator']:02d}"
-        )
-        # Check that the data doesn't already exist in the DB
-        query = await session.exec(
-            select(Plot)
-            .where(Plot.area_id == data["area_id"])
-            .where(Plot.plot_iterator == int(data["id"]))
-            .where(func.lower(Plot.gradient) == data["gradient"].lower())
-        )
-
-        if query.one_or_none():
-            errors.append(
-                {
-                    "csv_line": i,
-                    "message": (
-                        f"Duplicate record: {data['area_name']} {data['gradient']} {data['id']}"
-                    ),
-                }
-            )
-            continue
-
-        create_obj = PlotCreate.model_validate(data)
-        objs.append(create_obj)
-
-    # Raise exception if any errors as to not make any changes to the DB
-    if errors:
-        raise HTTPException(
-            status_code=400,
-            detail=PlotCreateBatchRead(
-                success=False,
-                message="Errors in CSV file",
-                errors=errors,
-                qty_added=0,
-            ).model_dump(),
-        )
-
-    for obj in objs:
-        db_obj = Plot.model_validate(obj)
-        session.add(db_obj)
-
-    await session.commit()
-
-    return PlotCreateBatchRead(
-        success=True,
-        message="Plots added successfully",
-        errors=[],
-        qty_added=len(objs),
-    )
+    return objs
 
 
 @router.put("/{plot_id}", response_model=PlotReadWithSamples)
@@ -264,6 +204,23 @@ async def update_plot(
     await session.refresh(plot)
 
     return plot
+
+
+@router.delete("/batch", response_model=list[str])
+async def delete_batch(
+    ids: list[UUID],
+    session: AsyncSession = Depends(get_session),
+) -> list[str]:
+    """Delete by a list of ids"""
+
+    for id in ids:
+        obj = await crud.get_model_by_id(model_id=id, session=session)
+        if obj:
+            await session.delete(obj)
+
+    await session.commit()
+
+    return [str(obj_id) for obj_id in ids]
 
 
 @router.delete("/{plot_id}")

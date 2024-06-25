@@ -5,7 +5,7 @@ from sqlalchemy import func
 from sqlmodel import SQLModel, Field
 from geoalchemy2 import Geometry
 from typing import Optional
-
+from app.utils.funcs import get_elevation_swisstopo
 
 router = APIRouter()
 
@@ -51,3 +51,21 @@ async def get_slope_class(
         return HTTPException(status_code=404, detail="No data found")
 
     return Slope(slope_class=obj.hl_neigung_hang)
+
+
+class Elevation(SQLModel):
+    elevation: float
+
+
+@router.get("/elevation", response_model=Elevation)
+async def get_elevation(
+    x: float = Query(..., description="x coordinate"),
+    y: float = Query(..., description="y coordinate"),
+    srid: int = Query(2056, description="Spatial Reference Identifier"),
+    session: AsyncSession = Depends(get_session),
+) -> Elevation:
+    """Get an sensordata by id"""
+
+    res = await get_elevation_swisstopo(x, y, srid)
+
+    return Elevation(elevation=res)
