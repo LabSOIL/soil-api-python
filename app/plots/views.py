@@ -3,72 +3,30 @@ from app.plots.models import (
     PlotCreate,
     PlotReadWithSamples,
     PlotUpdate,
+    PlotUpdateBatch,
 )
-from app.projects.models import Project
 from app.db import get_session, AsyncSession
 from fastapi import (
     Depends,
     APIRouter,
     Query,
     Response,
-    HTTPException,
     BackgroundTasks,
 )
 from uuid import UUID
 from app.crud import CRUD
 from app.areas.models import Area
-from typing import Any
-from app.utils.funcs import get_elevation_swisstopo, set_elevation_to_db_obj
 from sqlmodel import select
-from sqlalchemy import func
+from app.plots.services import (
+    get_count,
+    get_data,
+    get_one,
+    create_one,
+    update_one,
+    crud,
+)
 
 router = APIRouter()
-crud = CRUD(Plot, PlotReadWithSamples, PlotCreate, PlotUpdate)
-
-
-async def get_count(
-    response: Response,
-    filter: str = Query(None),
-    range: str = Query(None),
-    sort: str = Query(None),
-    session: AsyncSession = Depends(get_session),
-):
-    count = await crud.get_total_count(
-        response=response,
-        sort=sort,
-        range=range,
-        filter=filter,
-        session=session,
-    )
-
-    return count
-
-
-async def get_data(
-    filter: str = Query(None),
-    sort: str = Query(None),
-    range: str = Query(None),
-    session: AsyncSession = Depends(get_session),
-):
-    res = await crud.get_model_data(
-        sort=sort,
-        range=range,
-        filter=filter,
-        session=session,
-    )
-
-    return res
-
-
-async def get_one(
-    plot_id: UUID,
-    session: AsyncSession = Depends(get_session),
-):
-    res = await crud.get_model_by_id(model_id=plot_id, session=session)
-
-    if not res:
-        raise HTTPException(status_code=404, detail=f"ID: {plot_id} not found")
-    return res
 
 
 @router.get("/{plot_id}", response_model=PlotReadWithSamples)
@@ -94,55 +52,6 @@ async def get_all_plots(
             plot.image = None
 
     return plots
-
-
-async def create_one(
-    data: dict,
-    session: AsyncSession,
-    background_tasks: BackgroundTasks,
-) -> Plot:
-    """Create a single plot
-
-    To be used in both create one and create many endpoints
-    """
-
-    # If area name is given, find area by name (ensuring uniqueness) else id
-    if data.get("area_name"):
-        res = await session.exec(
-            select(Area).where(
-                func.lower(Area.name) == data.get("area_name").lower()
-            )
-        )
-        area_obj = res.one()
-        data["area_id"] = area_obj.id
-    else:
-        res = await session.exec(
-            select(Area).where(Area.id == data.get("area_id"))
-        )
-        area_obj = res.one()
-
-    data["name"] = (
-        f"{area_obj.name.upper()[0]}"
-        f"{data['gradient'].upper()[0]}{data['plot_iterator']:02d}"
-    )
-
-    obj = Plot.model_validate(data)
-
-    session.add(obj)
-
-    await session.commit()
-    await session.refresh(obj)
-
-    if float(data["coord_z"]) == 0:
-        # Start background process
-        background_tasks.add_task(
-            set_elevation_to_db_obj,
-            id=obj.id,
-            crud_instance=crud,
-            session=session,
-        )
-
-    return obj
 
 
 @router.post("", response_model=PlotReadWithSamples)
@@ -174,36 +83,30 @@ async def create_many(
     return objs
 
 
+@router.put("/batch", response_model=list[PlotReadWithSamples])
+async def update_many(
+    plots: list[PlotUpdateBatch],
+    session: AsyncSession = Depends(get_session),
+) -> list[PlotReadWithSamples]:
+    """Update plots from a list of PlotUpdate objects"""
+
+    objs = []
+    for plot in plots:
+        obj = await update_one(
+            plot_id=plot.id, plot_update=plot, session=session
+        )
+        objs.append(obj)
+
+    return objs
+
+
 @router.put("/{plot_id}", response_model=PlotReadWithSamples)
 async def update_plot(
-    plot_update: PlotUpdate,
-    *,
-    plot: PlotReadWithSamples = Depends(get_one),
-    session: AsyncSession = Depends(get_session),
+    updated_plot: Plot = Depends(update_one),
 ) -> PlotReadWithSamples:
     """Update a plot by id"""
 
-    update_data = plot_update.model_dump(exclude_unset=True)
-
-    # Get area for the plot
-    res = await session.exec(
-        select(Area).where(Area.id == update_data.get("area_id"))
-    )
-    area_obj = res.one()
-
-    update_data["name"] = (
-        f"{area_obj.name.upper()[0]}"
-        f"{update_data['gradient'].upper()[0]}"
-        f"{update_data['plot_iterator']:02d}"
-    )
-
-    plot.sqlmodel_update(update_data)
-
-    session.add(plot)
-    await session.commit()
-    await session.refresh(plot)
-
-    return plot
+    return updated_plot
 
 
 @router.delete("/batch", response_model=list[str])

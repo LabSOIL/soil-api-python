@@ -244,11 +244,16 @@ class PlotCreate(PlotBase):
 
 
 class PlotUpdate(PlotBase):
+    area_name: str | None = None  # Endpoint func will find area ID by name
+    area_id: UUID | None = None  # Can be None to allow discovery by name
+
     coord_x: float | None
     coord_y: float | None
     coord_z: float | None
 
     geom: Any | None = None
+
+    name: str | None = None  # Set null to allow endpoint func to gen. name
 
     @model_validator(mode="after")
     def convert_x_y_to_wkt(cls, values: Any) -> Any:
@@ -271,3 +276,7 @@ class PlotUpdate(PlotBase):
             )
 
         return values
+
+
+class PlotUpdateBatch(PlotUpdate):
+    id: UUID

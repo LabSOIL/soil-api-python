@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fulltext query on `str` fields in the database when using `q` filter.
 - Delete many functionality for all tables.
 - Get elevation on `plot` table if elevation (`coord_z`) is set to 0.
+- Bulk update on `plot` table.
 
 ### Changed
 - Set create many on `plot` table with list of records instead of CSV.
