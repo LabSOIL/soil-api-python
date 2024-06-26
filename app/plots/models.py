@@ -125,11 +125,16 @@ class Plot(PlotBase, table=True):
     )
     samples: list["PlotSample"] = Relationship(
         back_populates="plot",
-        sa_relationship_kwargs={"lazy": "selectin"},
+        sa_relationship_kwargs={
+            "lazy": "selectin",
+            "cascade": "all,delete,delete-orphan",
+        },
     )
     transects: list[Transect] = Relationship(
         back_populates="nodes",
-        sa_relationship_kwargs={"lazy": "selectin"},
+        sa_relationship_kwargs={
+            "lazy": "selectin",
+        },
         link_model=TransectNode,
     )
 
