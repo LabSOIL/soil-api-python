@@ -156,7 +156,7 @@ async def update_soil_profile(
     return soil_profile
 
 
-@router.delete("/profiles/batch", response_model=list[str])
+@router.delete("/batch", response_model=list[str])
 async def delete_batch(
     ids: list[UUID],
     session: AsyncSession = Depends(get_session),
@@ -173,7 +173,7 @@ async def delete_batch(
     return [str(obj_id) for obj_id in ids]
 
 
-@router.delete("/profiles/{soil_profile_id}")
+@router.delete("/{soil_profile_id}")
 async def delete_soil_profile(
     soil_profile: SoilProfileReadWithArea = Depends(get_one),
     session: AsyncSession = Depends(get_session),
