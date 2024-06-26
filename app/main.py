@@ -12,6 +12,7 @@ from app.plots.views import router as plots_router
 from app.plots.samples.views import router as plot_samples_router
 from app.projects.views import router as projects_router
 from app.utils.views import router as utils_router
+from app.gnss.views import router as gnss_router
 
 app = FastAPI()
 
@@ -95,4 +96,9 @@ app.include_router(
     utils_router,
     prefix=f"{config.API_V1_PREFIX}/utils",
     tags=["utils"],
+)
+app.include_router(
+    gnss_router,
+    prefix=f"{config.API_V1_PREFIX}/gnss",
+    tags=["gnss"],
 )

@@ -18,6 +18,7 @@ from app.plots.samples.models import PlotSample  # noqa
 from app.projects.models import Project  # noqa
 from app.transects.models.transects import Transect  # noqa
 from app.transects.models.nodes import TransectNode  # noqa
+from app.gnss.models import GNSS  # noqa
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
