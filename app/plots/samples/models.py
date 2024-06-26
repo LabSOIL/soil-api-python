@@ -52,13 +52,13 @@ class PlotSampleBase(SQLModel):
         description="Unique identifier for the plot",
     )
     sample_weight: float = Field(
-        nullable=False,
+        nullable=True,
         title="Sample Weight (g)",
         description="Weight of the complete sample collected in the field "
         "(in grams)",
     )
     subsample_weight: float = Field(
-        nullable=False,
+        nullable=True,
         title="Subsample Weight",
         description="Weight of the subsample taken for pH, RH, and LOI "
         "measurements. May contain additional information like replicates",
@@ -200,6 +200,44 @@ class PlotSampleBase(SQLModel):
         description="Silicon content in micrograms per gram (ug/g)",
     )
 
+    """ Microbial fields
+        * Fungi (fungal 18S gene copy number per g of soil)
+        * Bacteria (bacterial 16S gene copy number per g of soil)
+        * Archea (archeal 16S gene copy number per g of soil)
+        * Methanogens (mcrA gene copy number per g of soil)
+        * Methanotrophs (pmoA gene copy number per g of soil)
+    """
+    fungi_per_g: float | None = Field(
+        default=None,
+        nullable=True,
+        title="Fungi (fungal 18S gene copy number per g of soil)",
+        description="Fungi content in gene copy number per gram of soil",
+    )
+    bacteria_per_g: float | None = Field(
+        default=None,
+        nullable=True,
+        title="Bacteria (bacterial 16S gene copy number per g of soil)",
+        description="Bacteria content in gene copy number per gram of soil",
+    )
+    archea_per_g: float | None = Field(
+        default=None,
+        nullable=True,
+        title="Archea (archeal 16S gene copy number per g of soil)",
+        description="Archea content in gene copy number per gram of soil",
+    )
+    methanogens_per_g: float | None = Field(
+        default=None,
+        nullable=True,
+        title="Methanogens (mcrA gene copy number per g of soil)",
+        description="Methanogens content in gene copy number per gram of soil",
+    )
+    methanotrophs_per_g: float | None = Field(
+        default=None,
+        nullable=True,
+        title="Methanotrophs (pmoA gene copy number per g of soil)",
+        description="Methanotrophs content in gene copy number per gram of soil",
+    )
+
 
 class PlotSample(PlotSampleBase, table=True):
     __table_args__ = (
@@ -239,19 +277,38 @@ class PlotSampleReadWithPlot(PlotSampleRead):
 
 
 class PlotSampleCreate(PlotSampleBase):
-    pass
+    plot_id: UUID | None = None
+    project_name: str | None = None
+    area_name: str | None = None
+    plot_gradient: str | None = None
+    plot_iterator: int | None = None
+
+    @model_validator(mode="before")
+    def empty_string_to_none(cls, values):
+        """Convert empty strings for float fields to None."""
+
+        for key, value in values.items():
+            if isinstance(value, str) and not value:
+                values[key] = None
+        return values
 
 
 class PlotSampleUpdate(PlotSampleBase):
-    pass
+    plot_id: UUID | None = None
+    project_name: str | None = None
+    area_name: str | None = None
+    plot_gradient: str | None = None
+    plot_iterator: int | None = None
+
+    @model_validator(mode="before")
+    def empty_string_to_none(cls, values):
+        """Convert empty strings for float fields to None."""
+
+        for key, value in values.items():
+            if isinstance(value, str) and not value:
+                values[key] = None
+        return values
 
 
-class PlotSampleCreateBatch(SQLModel):
-    attachment: str  # Base64 encoded attachment
-
-
-class PlotSampleCreateBatchRead(SQLModel):
-    success: bool
-    message: str
-    errors: list[Any] = []
-    qty_added: int
+class PlotSampleUpdateBatch(PlotSampleUpdate):
+    id: UUID

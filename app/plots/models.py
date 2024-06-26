@@ -197,8 +197,17 @@ class PlotRead(PlotBase):
         return values
 
 
+class NestedAreaWithProject(SQLModel):
+    # Write a copy of AreaBase here to avoid circular imports
+    description: str | None
+    id: UUID | None
+    name: str | None
+    project_id: UUID | None
+    project: Any | None
+
+
 class PlotReadWithArea(PlotRead):
-    pass
+    area: NestedAreaWithProject
 
 
 class PlotReadWithSamples(PlotReadWithArea):
