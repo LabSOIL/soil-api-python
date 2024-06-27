@@ -53,11 +53,17 @@ async def get_convex_hull(session: AsyncSession):
     ).subquery()
 
     # Define the main query to group by area id and compute the convex hull
-    # with a 100m buffer
+    # And place a buffer around the convex hull to ensure that the convex hull
+    # covers the entire area, and that points and lines are always treated as
+    # polygons
+
     main_query = select(
         combined_subquery.c.id,
         ST_Transform(
-            ST_ConvexHull(ST_Collect(combined_subquery.c.geom)),
+            ST_Buffer(
+                ST_ConvexHull(ST_Collect(combined_subquery.c.geom)),
+                config.CONVEX_HULL_BUFFER,
+            ),
             4326,
         ).label("convex_hull"),
     ).group_by(combined_subquery.c.id)
