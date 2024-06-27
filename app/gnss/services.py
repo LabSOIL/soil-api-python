@@ -10,8 +10,10 @@ from fastapi import (
 from uuid import UUID
 from app.crud import CRUD
 from app.utils.funcs import decode_base64
+from app.config import config
 import xml.etree.ElementTree as ET
 import datetime
+import pyproj
 
 router = APIRouter()
 
@@ -75,10 +77,19 @@ def parse_gpx(gpx_data):
         # Fix time to be without timezone
         if time:
             time = datetime.datetime.fromisoformat(time).replace(tzinfo=None)
+
+        # Convert lat lon to x and y with the SRID defined in the config
+        transformer = pyproj.Transformer.from_crs(
+            "EPSG:4326", f"EPSG:{str(config.SRID)}", always_xy=True
+        )
+        x, y = transformer.transform(longitude, latitude)
+
         waypoints.append(
             {
                 "latitude": latitude,
                 "longitude": longitude,
+                "x": x,
+                "y": y,
                 "elevation": elevation,
                 "time": time,
                 "name": name,
@@ -163,12 +174,13 @@ async def create_one(
             name=row["name"],
             comment=row["comment"],
             original_filename=data["filename"],
+            x=row["x"],
+            y=row["y"],
         )
 
         objs.append(obj)
 
     session.add_all(objs)
-
     await session.commit()
 
     return objs

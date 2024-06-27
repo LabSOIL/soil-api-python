@@ -17,7 +17,8 @@ class GNSSBase(SQLModel):
     latitude: float | None = None
     longitude: float | None = None
     elevation_gps: float | None = None
-    elevation_corrected: float | None = None
+    x: float | None = None
+    y: float | None = None
     time: datetime.datetime | None = None
     name: str | None
     comment: str | None = None
