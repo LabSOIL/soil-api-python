@@ -19,6 +19,9 @@ from app.areas.models import Area
 from app.utils.funcs import set_elevation_to_db_obj
 from sqlmodel import select
 from sqlalchemy import func
+from sqlalchemy.exc import NoResultFound
+from typing import Any
+from app.exceptions import ValidationError
 
 router = APIRouter()
 
@@ -83,12 +86,19 @@ async def create_one(
 
     # If area name is given, find area by name (ensuring uniqueness) else id
     if data.get("area_name"):
-        res = await session.exec(
-            select(Area).where(
-                func.lower(Area.name) == data.get("area_name").lower()
+        try:
+            res = await session.exec(
+                select(Area).where(
+                    func.lower(Area.name) == data.get("area_name").lower()
+                )
             )
-        )
-        area_obj = res.one()
+            area_obj = res.one()
+        except NoResultFound:
+            raise ValidationError(
+                loc=["body", "area_name"],
+                msg=f"Area name: {data.get('area_name')} not found",
+            )
+
         data["area_id"] = area_obj.id
     else:
         res = await session.exec(
@@ -135,13 +145,21 @@ async def update_one(
     # If area id exists, use it, otherwise use the name if it exists
     # This allows the import CSV to use the area name (improve user experience)
     if update_data.get("area_name"):
-        res = await session.exec(
-            select(Area).where(
-                func.lower(Area.name) == update_data.get("area_name").lower()
+        try:
+            res = await session.exec(
+                select(Area).where(
+                    func.lower(Area.name)
+                    == update_data.get("area_name").lower()
+                )
             )
-        )
-        area_obj = res.one()  # Make sure only one returns
+            area_obj = res.one()  # Make sure only one returns
+        except NoResultFound:
+            raise ValidationError(
+                loc=["body", "area_name"],
+                msg=f"Area name: {update_data.get('area_name')} not found",
+            )
         update_data["area_id"] = area_obj.id
+
     else:
         res = await session.exec(
             select(Area).where(Area.id == update_data.get("area_id"))

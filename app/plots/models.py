@@ -256,6 +256,15 @@ class PlotCreate(PlotBase):
 
         return values
 
+    @model_validator(mode="before")
+    def empty_string_to_none(cls, values):
+        """Convert empty strings for float and datetime fields to None."""
+
+        for key, value in values.items():
+            if isinstance(value, str) and not value:
+                values[key] = None
+        return values
+
 
 class PlotUpdate(PlotBase):
     area_name: str | None = None  # Endpoint func will find area ID by name
@@ -289,6 +298,15 @@ class PlotUpdate(PlotBase):
                 values.image, config.IMAGE_MAX_SIZE
             )
 
+        return values
+
+    @model_validator(mode="before")
+    def empty_string_to_none(cls, values):
+        """Convert empty strings for float and datetime fields to None."""
+
+        for key, value in values.items():
+            if isinstance(value, str) and not value:
+                values[key] = None
         return values
 
 

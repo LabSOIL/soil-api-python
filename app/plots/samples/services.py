@@ -13,6 +13,8 @@ from uuid import UUID
 from app.crud import CRUD
 from sqlmodel import select
 from sqlalchemy import func
+from app.exceptions import ValidationError
+from sqlalchemy.exc import NoResultFound
 
 router = APIRouter()
 crud = CRUD(
@@ -85,31 +87,45 @@ async def create_one(
             or not data.get("plot_gradient")
             or not data.get("plot_iterator")
         ):
-            raise HTTPException(
-                status_code=400,
-                detail=(
+            raise ValidationError(
+                loc=["body"],
+                msg=(
                     "Project name, area name, plot gradient and plot iterator "
                     "are required fields if Plot ID not given"
                 ),
             )
-
-        query = await session.exec(
-            select(Plot)
-            .join(Area)
-            .join(Project)
-            .where(Plot.plot_iterator == int(data["plot_iterator"]))
-            .where(func.lower(Plot.gradient) == data["plot_gradient"].lower())
-            .where(func.lower(Area.name) == data["area_name"].lower())
-            .where(func.lower(Project.name) == data["project_name"].lower())
-        )
-        plot = query.one()
-        data["plot_id"] = plot.id
+        try:
+            query = await session.exec(
+                select(Plot)
+                .join(Area)
+                .join(Project)
+                .where(Plot.plot_iterator == int(data["plot_iterator"]))
+                .where(
+                    func.lower(Plot.gradient) == data["plot_gradient"].lower()
+                )
+                .where(func.lower(Area.name) == data["area_name"].lower())
+                .where(
+                    func.lower(Project.name) == data["project_name"].lower()
+                )
+            )
+            plot = query.one()
+            data["plot_id"] = plot.id
+        except NoResultFound:
+            raise ValidationError(
+                loc=["body"],
+                msg="Plot with the given project name, area name, plot gradient, and plot iterator not found",
+            )
     else:
-        res = await session.exec(
-            select(Plot).where(Plot.id == data.get("plot_id"))
-        )
-        plot = res.one()
-
+        try:
+            res = await session.exec(
+                select(Plot).where(Plot.id == data.get("plot_id"))
+            )
+            plot = res.one()
+        except NoResultFound:
+            raise ValidationError(
+                loc=["body", "plot_id"],
+                msg=f"Plot ID: {data.get('plot_id')} not found",
+            )
     obj = PlotSample.model_validate(data)
 
     session.add(obj)
@@ -140,39 +156,53 @@ async def update_one(
             or not update_data.get("plot_gradient")
             or not update_data.get("plot_iterator")
         ):
-            raise HTTPException(
-                status_code=400,
-                detail=(
+            raise ValidationError(
+                loc=["body"],
+                msg=(
                     "Project name, area name, plot gradient and plot iterator "
                     "are required fields if Plot ID not given"
                 ),
             )
+        try:
+            query = await session.exec(
+                select(Plot)
+                .join(Area)
+                .join(Project)
+                .where(
+                    Plot.plot_iterator == int(update_data["plot_iterator"]),
+                )
+                .where(
+                    func.lower(Plot.gradient)
+                    == update_data["plot_gradient"].lower()
+                )
+                .where(
+                    func.lower(Area.name) == update_data["area_name"].lower(),
+                )
+                .where(
+                    func.lower(Project.name)
+                    == update_data["project_name"].lower()
+                )
+            )
+            plot = query.one()
+            update_data["plot_id"] = plot.id
+        except NoResultFound:
+            raise ValidationError(
+                loc=["body"],
+                msg="Plot with the given project name, area name, plot gradient, and plot iterator not found",
+            )
 
-        query = await session.exec(
-            select(Plot)
-            .join(Area)
-            .join(Project)
-            .where(
-                Plot.plot_iterator == int(update_data["plot_iterator"]),
-            )
-            .where(
-                func.lower(Plot.gradient)
-                == update_data["plot_gradient"].lower()
-            )
-            .where(
-                func.lower(Area.name) == update_data["area_name"].lower(),
-            )
-            .where(
-                func.lower(Project.name) == update_data["project_name"].lower()
-            )
-        )
-        plot = query.one()
-        update_data["plot_id"] = plot.id
     else:
-        res = await session.exec(
-            select(Plot).where(Plot.id == update_data.get("plot_id"))
-        )
-        plot = res.one()
+        try:
+
+            res = await session.exec(
+                select(Plot).where(Plot.id == update_data.get("plot_id"))
+            )
+            plot = res.one()
+        except NoResultFound:
+            raise ValidationError(
+                loc=["body", "plot_id"],
+                msg=f"Plot ID: {update_data.get('plot_id')} not found",
+            )
 
     obj.sqlmodel_update(update_data)
 
