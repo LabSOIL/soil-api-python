@@ -141,8 +141,8 @@ async def get_area(
 
     for geom in geometry:
         if obj.id == geom.id:
-            res = AreaRead.model_validate(res)
-            res.geom = geom.convex_hull
+            obj = AreaRead.model_validate(obj)
+            obj.geom = geom.convex_hull
             break
     return obj
 
@@ -206,9 +206,9 @@ async def update_area(
     geometry = await get_convex_hull(session)
 
     for geom in geometry:
-        if res.id == geom.id:
-            res = AreaRead.model_validate(res)
-            res.geom = geom.convex_hull
+        if area.id == geom.id:
+            area = AreaRead.model_validate(area)
+            area.geom = geom.convex_hull
             break
 
 
