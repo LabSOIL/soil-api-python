@@ -52,7 +52,7 @@ class SoilProfileBase(SQLModel):
     aspect: str | None = Field(
         default=None,
     )
-    slope: float | None = Field(
+    parent_material: float | None = Field(
         default=None,
     )
     lythology_surficial_deposit: str | None = Field(

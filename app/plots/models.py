@@ -66,9 +66,6 @@ class PlotBase(SQLModel):
     created_on: datetime.date | None = Field(
         None,
     )
-    slope: str | None = Field(
-        default=None,
-    )
     weather: str | None = Field(
         default=None,
     )
