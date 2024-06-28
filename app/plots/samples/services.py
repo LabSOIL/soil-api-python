@@ -15,6 +15,9 @@ from sqlmodel import select
 from sqlalchemy import func
 from app.exceptions import ValidationError
 from sqlalchemy.exc import NoResultFound
+import sqlalchemy
+from sqlalchemy.sql import cast
+
 
 router = APIRouter()
 crud = CRUD(
@@ -101,7 +104,8 @@ async def create_one(
                 .join(Project)
                 .where(Plot.plot_iterator == int(data["plot_iterator"]))
                 .where(
-                    func.lower(Plot.gradient) == data["plot_gradient"].lower()
+                    # Cast to string because it's an enum
+                    func.lower(cast(Plot.gradient, sqlalchemy.String)) == data["plot_gradient"].lower()
                 )
                 .where(func.lower(Area.name) == data["area_name"].lower())
                 .where(
@@ -172,8 +176,8 @@ async def update_one(
                     Plot.plot_iterator == int(update_data["plot_iterator"]),
                 )
                 .where(
-                    func.lower(Plot.gradient)
-                    == update_data["plot_gradient"].lower()
+                    # Cast to string because it's an enum
+                    func.lower(cast(Plot.gradient, sqlalchemy.String)) == update_data["plot_gradient"].lower()
                 )
                 .where(
                     func.lower(Area.name) == update_data["area_name"].lower(),
