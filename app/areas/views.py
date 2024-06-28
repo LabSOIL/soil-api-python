@@ -125,23 +125,25 @@ async def get_one(
     if not res:
         raise HTTPException(status_code=404, detail=f"ID: {area_id} not found")
 
-    geometry = await get_convex_hull(session)
-
-    for geom in geometry:
-        if res.id == geom.id:
-            res = AreaRead.model_validate(res)
-            res.geom = geom.convex_hull
-            break
-
     return res
 
 
 @router.get("/{area_id}", response_model=AreaRead)
 async def get_area(
     obj: CRUD = Depends(get_one),
+    session: AsyncSession = Depends(get_session),
 ) -> AreaRead:
     """Get an area by id"""
 
+
+
+    geometry = await get_convex_hull(session)
+
+    for geom in geometry:
+        if obj.id == geom.id:
+            res = AreaRead.model_validate(res)
+            res.geom = geom.convex_hull
+            break
     return obj
 
 
@@ -150,8 +152,19 @@ async def get_all_areas(
     response: Response,
     areas: CRUD = Depends(get_data),
     total_count: int = Depends(get_count),
+    session: AsyncSession = Depends(get_session),
 ) -> list[AreaRead]:
     """Get all Area data"""
+
+
+    for res in areas:
+        geometry = await get_convex_hull(session)
+
+        for geom in geometry:
+            if res.id == geom.id:
+                res = AreaRead.model_validate(res)
+                res.geom = geom.convex_hull
+                break
 
     return areas
 
@@ -170,6 +183,7 @@ async def create_area(
     await session.commit()
     await session.refresh(obj)
 
+
     return obj
 
 
@@ -177,7 +191,7 @@ async def create_area(
 async def update_area(
     area_update: AreaUpdate,
     *,
-    area: AreaRead = Depends(get_one),
+    area: Area = Depends(get_one),
     session: AsyncSession = Depends(get_session),
 ) -> AreaRead:
     """Update an area by id"""
@@ -188,6 +202,15 @@ async def update_area(
     session.add(area)
     await session.commit()
     await session.refresh(area)
+
+    geometry = await get_convex_hull(session)
+
+    for geom in geometry:
+        if res.id == geom.id:
+            res = AreaRead.model_validate(res)
+            res.geom = geom.convex_hull
+            break
+
 
     return area
 
@@ -211,7 +234,7 @@ async def delete_batch(
 
 @router.delete("/{area_id}")
 async def delete_area(
-    area: AreaRead = Depends(get_one),
+    area: Area = Depends(get_one),
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """Delete an area by id"""

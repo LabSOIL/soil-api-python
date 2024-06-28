@@ -98,26 +98,40 @@ async def create_one(
                 ),
             )
         try:
+            print(data["plot_gradient"].lower(),
+                  data["area_name"].lower(),
+                  data["project_name"].lower(),
+                  data["plot_iterator"])
+
             query = await session.exec(
                 select(Plot)
                 .join(Area)
                 .join(Project)
                 .where(Plot.plot_iterator == int(data["plot_iterator"]))
-                .where(
-                    # Cast to string because it's an enum
-                    func.lower(cast(Plot.gradient, sqlalchemy.String)) == data["plot_gradient"].lower()
-                )
+                # .where(
+                #     # Cast to string because it's an enum
+                #     func.lower(cast(Plot.gradient, sqlalchemy.String)) == data["plot_gradient"].lower()
+                # )
                 .where(func.lower(Area.name) == data["area_name"].lower())
                 .where(
                     func.lower(Project.name) == data["project_name"].lower()
                 )
             )
+            # Print query as raw SQL
+            # print(query.statement.compile(compile_kwargs={"literal_binds": True}))
             plot = query.one()
             data["plot_id"] = plot.id
-        except NoResultFound:
+        except NoResultFound as e:
+            print(e)
             raise ValidationError(
                 loc=["body"],
-                msg="Plot with the given project name, area name, plot gradient, and plot iterator not found",
+                msg=("Plot with the given project name "
+                     f"({data['project_name']}), "
+                     f"area name ({data['area_name']}), "
+                     f"plot gradient ({data['plot_gradient']}), "
+                        f"and plot iterator ({data['plot_iterator']}) "
+                        "not found"),
+
             )
     else:
         try:
