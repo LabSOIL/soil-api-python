@@ -107,14 +107,19 @@ async def create_one(
                 select(Plot)
                 .join(Area)
                 .join(Project)
-                .where(Plot.plot_iterator == int(data["plot_iterator"]))
-                # .where(
-                #     # Cast to string because it's an enum
-                #     func.lower(cast(Plot.gradient, sqlalchemy.String)) == data["plot_gradient"].lower()
-                # )
-                .where(func.lower(Area.name) == data["area_name"].lower())
                 .where(
-                    func.lower(Project.name) == data["project_name"].lower()
+                    Plot.plot_iterator == int(data["plot_iterator"]),
+                )
+                .where(
+                    # Cast to string because it's an enum
+                    func.lower(cast(Plot.gradient, sqlalchemy.String)) == data["plot_gradient"].lower()
+                )
+                .where(
+                    func.lower(Area.name) == data["area_name"].lower(),
+                )
+                .where(
+                    func.lower(Project.name)
+                    == data["project_name"].lower()
                 )
             )
             # Print query as raw SQL
