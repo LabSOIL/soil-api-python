@@ -57,7 +57,8 @@ class PlotSampleBase(SQLModel):
         description="Weight of the complete sample collected in the field "
         "(in grams)",
     )
-    subsample_weight: float = Field(
+    subsample_weight: float | None = Field(
+        default=None,
         nullable=True,
         title="Subsample Weight",
         description="Weight of the subsample taken for pH, RH, and LOI "
