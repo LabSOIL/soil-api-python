@@ -15,6 +15,7 @@ import pyproj
 
 if TYPE_CHECKING:
     from app.soil.profiles.models import SoilProfile, SoilProfileRead
+    from app.transects.models.transects import Transect
 
 
 class AreaBase(SQLModel):
@@ -73,6 +74,10 @@ class Area(AreaBase, table=True):
     )
 
     soil_profiles: list["SoilProfile"] = Relationship(
+        back_populates="area",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
+    transects: list["Transect"] = Relationship(
         back_populates="area",
         sa_relationship_kwargs={"lazy": "selectin"},
     )
@@ -151,6 +156,7 @@ class AreaRead(AreaBase):
     soil_profiles: list[GenericNameIDPointModel] = []
     plots: list[GenericNameIDPointModel] = []
     sensors: list[GenericNameIDPointModel] = []
+    transects: list[Any] = []
 
     @model_validator(mode="after")
     def convert_wkb_to_json(cls, values: Any) -> Any:

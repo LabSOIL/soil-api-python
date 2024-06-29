@@ -7,6 +7,7 @@ from app.transects.models.nodes import TransectNode
 
 if TYPE_CHECKING:
     from app.plots.models import Plot
+    from app.areas.models import Area
 
 
 class TransectBase(SQLModel):
@@ -32,6 +33,11 @@ class TransectBase(SQLModel):
             "server_default": func.now(),
         },
     )
+    area_id: UUID = Field(
+        nullable=False,
+        index=True,
+        foreign_key="area.id",
+    )
 
 
 class Transect(TransectBase, table=True):
@@ -53,6 +59,10 @@ class Transect(TransectBase, table=True):
         sa_relationship_kwargs={"lazy": "selectin"},
         link_model=TransectNode,
     )
+    area: "Area" = Relationship(
+        back_populates="transects",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
 
 
 class PlotSimple(SQLModel):
@@ -64,6 +74,7 @@ class PlotSimple(SQLModel):
 class TransectRead(TransectBase):
     id: UUID
     nodes: list[PlotSimple]
+    area: Any
 
 
 class TransectCreate(TransectBase):
