@@ -2,7 +2,7 @@ from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
 from uuid import UUID, uuid4
 import datetime
 from sqlalchemy.sql import func
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from app.transects.models.nodes import TransectNode
 
 if TYPE_CHECKING:
@@ -10,9 +10,10 @@ if TYPE_CHECKING:
 
 
 class TransectBase(SQLModel):
-    name: str = Field(
+    name: str | None = Field(
         default=None,
         index=True,
+        nullable=True,
     )
     description: str | None = Field(
         default=None,
@@ -54,12 +55,19 @@ class Transect(TransectBase, table=True):
     )
 
 
+class PlotSimple(SQLModel):
+    # We only need the id of the plot
+    id: UUID
+    name: str | None = None
+
+
 class TransectRead(TransectBase):
     id: UUID
+    nodes: list[PlotSimple]
 
 
 class TransectCreate(TransectBase):
-    pass
+    nodes: list[PlotSimple]
 
 
 class TransectUpdate(TransectBase):

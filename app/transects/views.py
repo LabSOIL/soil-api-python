@@ -10,6 +10,8 @@ from sqlmodel import select
 from uuid import UUID
 from typing import Any
 from app.crud import CRUD
+from app.plots.models import Plot
+from app.transects.models.nodes import TransectNode
 
 router = APIRouter()
 crud = CRUD(Transect, TransectRead, TransectCreate, TransectUpdate)
@@ -91,14 +93,36 @@ async def create_transect(
 ) -> TransectRead:
     """Creates a transect data record"""
 
-    obj = Transect.model_validate(transect)
+    transect_dict = transect.model_dump()
+    transect_dict.pop("nodes", None)
 
-    session.add(obj)
+    transect_obj = Transect.model_validate(transect_dict)
+    transect_obj.nodes = []
+
+    session.add(transect_obj)
 
     await session.commit()
-    await session.refresh(obj)
+    await session.refresh(transect_obj)
 
-    return obj
+    for i, node in enumerate(transect.nodes):
+        # Get the plot objects for each id in nodes and replace nodes with list
+        res = await session.exec(select(Plot).where(Plot.id == node.id))
+        obj = res.one()
+
+        # Create Transect Node from plot and transect
+
+        node_obj = TransectNode(
+            plot_id=obj.id,
+            transect_id=transect_obj.id,
+            order=i,
+        )
+        session.add(node_obj)
+        await session.commit()
+        await session.refresh(node_obj)
+
+    await session.refresh(transect_obj)
+
+    return transect_obj
 
 
 @router.put("/{transect_id}", response_model=TransectRead)
