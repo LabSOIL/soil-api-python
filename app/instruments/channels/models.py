@@ -39,23 +39,14 @@ class InstrumentExperimentChannel(InstrumentExperimentChannelBase, table=True):
     )
 
 
-class ExperimentWithData(SQLModel):
-    name: str | None
-    date: datetime.datetime | None
-    filename: str | None
-    id: UUID
-    last_updated: datetime.datetime | None
-    data: Any
-
-
 class InstrumentExperimentChannelRead(InstrumentExperimentChannelBase):
     id: UUID
     experiment: Any
     data: Any
 
 
-class InstrumentExperimentChannelUpdate(InstrumentExperimentChannelBase):
-    pass
+class InstrumentExperimentChannelUpdate(SQLModel):
+    baseline_points: list
 
 
 class InstrumentExperimentChannelCreate(InstrumentExperimentChannelBase):

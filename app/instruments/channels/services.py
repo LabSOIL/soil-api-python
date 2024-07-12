@@ -231,15 +231,20 @@ async def delete_many(
 
 
 async def update_one(
+    id: UUID,
     instrument_experiment_update: InstrumentExperimentChannelUpdate,
-    instrument_experiment: InstrumentExperimentChannelRead = Depends(get_one),
     session: AsyncSession = Depends(get_session),
-) -> InstrumentExperimentChannelRead:
+) -> InstrumentExperimentChannel:
+
+    instrument_experiment = await crud.get_model_by_id(
+        model_id=id, session=session
+    )
 
     update_data = instrument_experiment_update.model_dump(exclude_unset=True)
     instrument_experiment.sqlmodel_update(update_data)
 
     session.add(instrument_experiment)
+
     await session.commit()
     await session.refresh(instrument_experiment)
 
