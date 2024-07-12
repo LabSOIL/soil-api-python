@@ -23,10 +23,12 @@ def decode_base64(value: str) -> tuple[bytes, str]:
         type = "csv"
     elif "gpx" in data_parts[0]:
         type = "gpx"
+    elif "text/plain" in data_parts[0]:
+        type = "txt"
     else:
         raise HTTPException(
             status_code=400,
-            detail="Only CSV and GPX files are supported",
+            detail="Only CSV, TXT, and GPX files are supported",
         )
 
     base64_content = data_parts[1]

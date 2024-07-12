@@ -19,6 +19,9 @@ from app.projects.models import Project  # noqa
 from app.transects.models.transects import Transect  # noqa
 from app.transects.models.nodes import TransectNode  # noqa
 from app.gnss.models import GNSS  # noqa
+from app.instruments.models.experiment import InstrumentExperimentRead  # noqa
+from app.instruments.models.data import InstrumentExperimentData  # noqa
+from app.instruments.channels.models import InstrumentExperimentChannel  # noqa
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -6,10 +6,18 @@ import sys
 
 
 class Config(BaseSettings):
+    # API settings
     API_V1_PREFIX: str = "/v1"
+
+    # Geographic settings
     SRID: int = 2056  # To use for x,y coords in CH | CH1903+ / LV95
     CONVEX_HULL_BUFFER: float = 1.0  # Buffer distance for convex hulls
+
+    # Image settings
     IMAGE_MAX_SIZE: int = 1000  # Maximum pixel size for images on either x/y
+
+    # Instrument settings
+    INSTRUMENT_PLOT_DOWNSAMPLE_THRESHOLD: int = 50
 
     # PostGIS settings
     DB_HOST: str | None = None

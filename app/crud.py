@@ -283,3 +283,18 @@ class CRUD:
         obj = res.one_or_none()
 
         return obj
+
+    async def create_model(
+        self,
+        model: Any,
+        session: AsyncSession,
+    ) -> Any:
+        """Create a model"""
+
+        obj = self.db_model.from_orm(model)
+
+        session.add(obj)
+        await session.commit()
+        await session.refresh(obj)
+
+        return obj
