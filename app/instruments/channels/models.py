@@ -14,8 +14,10 @@ class InstrumentExperimentChannelBase(SQLModel):
     experiment_id: UUID = Field(
         foreign_key="instrumentexperiment.id", nullable=False
     )
-    baseline_spline: dict = Field(default={}, sa_column=Column(JSON))
-    baseline_points: list = Field(default=[], sa_column=Column(JSON))
+    time_values: list = Field(default=[], sa_column=Column(JSON))
+    raw_values: list = Field(default=[], sa_column=Column(JSON))
+    baseline_spline: list = Field(default=[], sa_column=Column(JSON))
+    baseline_values: list = Field(default=[], sa_column=Column(JSON))
 
 
 class InstrumentExperimentChannel(InstrumentExperimentChannelBase, table=True):
@@ -31,22 +33,14 @@ class InstrumentExperimentChannel(InstrumentExperimentChannelBase, table=True):
             "lazy": "selectin",
         },
     )
-    data: list["InstrumentExperimentData"] = Relationship(
-        back_populates="channel",
-        sa_relationship_kwargs={
-            "lazy": "selectin",
-        },
-    )
 
 
 class InstrumentExperimentChannelRead(InstrumentExperimentChannelBase):
     id: UUID
-    experiment: Any
-    data: Any
 
 
 class InstrumentExperimentChannelUpdate(SQLModel):
-    baseline_points: list
+    baseline_values: list
 
 
 class InstrumentExperimentChannelCreate(InstrumentExperimentChannelBase):

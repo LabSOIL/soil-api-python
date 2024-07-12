@@ -21,10 +21,20 @@ import csv
 # from scipy.constants import physical_constants
 import datetime
 
-from app.instruments.models.data import InstrumentExperimentData
-from app.instruments.models.experiment import InstrumentExperimentRead
-from app.instruments.channels.models import InstrumentExperimentChannel
+from app.instruments.channels.models import (
+    InstrumentExperimentChannel,
+    InstrumentExperimentChannelRead,
+)
 from app.config import config
+from typing import List, Dict
+from uuid import UUID
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
+import numpy as np
+import pybaselines
+from scipy.constants import physical_constants
+from scipy.integrate import simpson
 
 
 def find_header_start(input_text: str, header_text: str = "Time/s, ") -> int:
@@ -141,22 +151,23 @@ def import_data(
     # values = [float(row[i]) for row in data]
 
 
-def largest_triangle_three_buckets(data, threshold):
+def largest_triangle_three_buckets(x, y, threshold):
     """Downsample data using the Largest Triangle Three Buckets algorithm."""
 
-    if len(data) <= threshold:
-        return data
+    if len(x) <= threshold:
+        return x, y
 
-    bucket_size = (len(data) - 2) / (threshold - 2)
-    downsampled = [data[0]]
+    bucket_size = (len(x) - 2) / (threshold - 2)
+    downsampled_x = [x[0]]
+    downsampled_y = [y[0]]
 
     for i in range(1, threshold - 1):
         avg_x = avg_y = 0
         for j in range(
             int((i - 1) * bucket_size + 1), int(i * bucket_size + 1)
         ):
-            avg_x += data[j]["time"]
-            avg_y += data[j]["value"]
+            avg_x += x[j]
+            avg_y += y[j]
         avg_x /= bucket_size
         avg_y /= bucket_size
 
@@ -166,88 +177,45 @@ def largest_triangle_three_buckets(data, threshold):
 
         for j in range(range_start, range_end):
             area = abs(
-                (data[range_start - 1]["time"] - avg_x)
-                * (data[j]["value"] - data[range_start - 1]["value"])
-                - (data[range_start - 1]["time"] - data[j]["time"])
-                * (avg_y - data[range_start - 1]["value"])
+                (x[range_start - 1] - avg_x) * (y[j] - y[range_start - 1])
+                - (x[range_start - 1] - x[j]) * (avg_y - y[range_start - 1])
             )
             if area > max_area:
                 max_area = area
                 max_index = j
 
-        downsampled.append(data[max_index])
+        downsampled_x.append(x[max_index])
+        downsampled_y.append(y[max_index])
 
-    downsampled.append(data[-1])
-    return downsampled
-
-
-async def restructure_data_to_tabular(
-    data: list[InstrumentExperimentData],
-    channels: list[InstrumentExperimentChannel],
-) -> list[dict]:
-    """
-    Restructure the data to a tabular format such that
-    time: float
-    i1/A
-    i2/A
-    ... etc
-    [
-        {'time': '5.000e+0', 'i1/A': 3.138e-5, 'i2/A': 2.966e-5, ...},
-        {'time': '1.000e+1', 'i1/A': 2.905e-5, 'i2/A': 2.848e-5, ...},
-    ]
-    """
-    # Create a mapping from channel ID to channel name
-    channel_map = {channel.id: channel.channel_name for channel in channels}
-
-    # Create a dictionary to hold the rows keyed by time
-    rows = {}
-
-    # Aggregate the data into rows
-    for record in data:
-        if record.time not in rows:
-            rows[record.time] = {"Time/s": record.time}
-        rows[record.time][channel_map[record.channel_id]] = record.value
-
-    # Convert the rows dictionary to a list of dictionaries sorted by time
-    sorted_rows = [rows[time] for time in sorted(rows.keys())]
-
-    return sorted_rows
+    downsampled_x.append(x[-1])
+    downsampled_y.append(y[-1])
+    return downsampled_x, downsampled_y
 
 
-async def restructure_data_to_column_time(
-    data: list[InstrumentExperimentData],
-    channels: list[InstrumentExperimentChannel],
-    threshold: int = config.INSTRUMENT_PLOT_DOWNSAMPLE_THRESHOLD,  # Adjust the threshold based on your needs
-):
-    """
-    Restructure to provide for each channel, a series of data points
-    For example:
+def calculate_spline(
+    x: np.ndarray,
+    y: np.ndarray,
+    baseline_values: List[float],
+    interpolation_method: str,
+) -> np.ndarray:
+    fitter = pybaselines.Baseline(x, check_finite=False)
+    pairs = np.array([(bp, y[np.where(x == bp)][0]) for bp in baseline_values])
 
-    [
-        {'channel': 'i1/A', 'data': [{'time': '5.000e+0', 'value': 3.138e-5}, ...]},
-        {'channel': 'i2/A', 'data': [{'time': '5.000e+0', 'value': 2.966e-5}, ...]},
-    ]
-    """
+    if len(baseline_values) < 4:
+        spline = fitter.interp_pts(
+            x.reshape(-1, 1),
+            baseline_points=pairs,
+            interp_method="linear",
+        )[0]
+    else:
+        spline = fitter.interp_pts(
+            x.reshape(-1, 1),
+            baseline_points=pairs,
+            interp_method=interpolation_method,
+        )[0]
 
-    # Create a list of dictionaries for each channel
-    channel_data = []
+    return spline
 
-    for channel in channels:
-        channel_name = channel.channel_name
-        data_points = []
 
-        for record in data:
-            if record.channel_id == channel.id:
-                data_points.append(
-                    {"time": record.time, "value": record.value}
-                )
-
-        # Downsample the data points
-        if len(data_points) > threshold:
-            data_points = largest_triangle_three_buckets(
-                data_points, threshold
-            )
-
-        channel_data.append({"channel": channel_name, "data": data_points})
-
-    return channel_data
+def filter_baseline(y: np.ndarray, spline: np.ndarray) -> np.ndarray:
+    return y - spline

@@ -3,8 +3,6 @@ from uuid import UUID, uuid4
 from typing import Any, List, Optional
 import datetime
 from sqlalchemy.sql import func
-
-from app.instruments.models.data import InstrumentExperimentData
 from app.instruments.channels.models import InstrumentExperimentChannel
 
 
@@ -48,13 +46,6 @@ class InstrumentExperiment(InstrumentExperimentBase, table=True):
         },
     )
 
-    data: List["InstrumentExperimentData"] = Relationship(
-        back_populates="experiment",
-        sa_relationship_kwargs={
-            "lazy": "selectin",
-            "cascade": "all,delete,delete-orphan",
-        },
-    )
     channels: List["InstrumentExperimentChannel"] = Relationship(
         back_populates="experiment",
         sa_relationship_kwargs={
@@ -64,10 +55,15 @@ class InstrumentExperiment(InstrumentExperimentBase, table=True):
     )
 
 
+class ChannelNoPoints(SQLModel):
+    channel_name: str
+    id: UUID
+    baseline_values: list[Any] = []
+
+
 class InstrumentExperimentRead(InstrumentExperimentBase):
     id: UUID
-    # data: List[Any] = []
-    channels: List[Any] = []
+    channels: List[ChannelNoPoints] = []
     last_updated: datetime.datetime | None = None
 
 

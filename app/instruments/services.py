@@ -5,7 +5,6 @@ from app.instruments.models.experiment import (
     InstrumentExperimentUpdate,
 )
 from app.instruments.channels.models import InstrumentExperimentChannel
-from app.instruments.models.data import InstrumentExperimentData
 from app.db import get_session, AsyncSession
 from fastapi import Depends, APIRouter, Query, Response, HTTPException
 from uuid import UUID
@@ -14,7 +13,6 @@ from app.utils.funcs import decode_base64
 import csv
 import datetime
 from app.config import config
-from app.instruments.tools import restructure_data_to_column_time
 
 router = APIRouter()
 
@@ -71,13 +69,6 @@ async def get_one(
         raise HTTPException(status_code=404, detail=f"ID: {id} not found")
 
     return res
-    read_obj = InstrumentExperimentRead.model_validate(res)
-
-    data = await restructure_data_to_column_time(res.data, res.channels)
-    # print(data)
-    read_obj.data = data
-
-    return read_obj
 
 
 async def create_one(
@@ -114,13 +105,15 @@ async def create_one(
     while not lines[data_start]:
         data_start += 1
 
-    # Try to get date from the first line, it is structured like:
+    # Try to get date from the first line if we can ..., it is structured like:
     # June 16, 2023   19:48:38
+    # ... :(
     try:
-        date_str = lines[data_start][0].strip()
-        date = datetime.datetime.strptime(date_str, "%B %d, %Y %H:%M:%S")
+        date_str = decoded_data[0]
+        date = datetime.datetime.strptime(date_str, "%B %d, %Y   %H:%M:%S")
     except ValueError:
         date = None
+
     # Create an Experiment
     experiment = InstrumentExperiment(
         name=instrument_experiment.name,
@@ -156,36 +149,41 @@ async def create_one(
 
     """
 
-    # Create a channel for each column
-    for i, col in enumerate(header):
-        if col == "Time/s":
+    # Combine the data into channel [(column_id, (time, value)), ...] and
+    # then create the channel row where time is the x-axis and value is the
+    # y-axis
+    # channel = InstrumentExperimentChannel(
+    #     channel_name=column.strip(),
+    #     experiment_id=experiment.id,
+    #     time_values=[],
+    #     raw_values=[]
+    # )
+
+    time = []
+    # Create a time array
+    for row in lines[data_start:]:
+        # Account for an empty or incomplete final line
+        if len(row) < 2:
             continue
 
-        channel = InstrumentExperimentChannel(
-            channel_name=col,
-            experiment_id=experiment.id,
-        )
+        time.append(float(row[0]))
 
-        session.add(channel)
-        await session.commit()
-        await session.refresh(channel)
-
-        # Create data for each row
+    # Now for each column create a value array, when finished, create channel
+    # with time and value arrays and experiment_id
+    for i, column in enumerate(header[1:]):
+        # Account for an empty or incomplete final line
+        values = []
         for row in lines[data_start:]:
-            if not row:
+            if len(row) < 2:
                 continue
-
-            data = row[i]
-            data = float(data)
-
-            data = InstrumentExperimentData(
-                channel_id=channel.id,
-                experiment_id=experiment.id,
-                time=float(row[0]),
-                value=data,
-            )
-
-            session.add(data)
+            values.append(float(row[i + 1]))
+        channel = InstrumentExperimentChannel(
+            channel_name=column.strip(),
+            experiment_id=experiment.id,
+            time_values=time,
+            raw_values=values,
+        )
+        session.add(channel)
 
     await session.commit()
     await session.refresh(experiment)
