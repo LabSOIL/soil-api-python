@@ -63,6 +63,7 @@ async def get_data(
 async def get_one(
     id: UUID,
     session: AsyncSession = Depends(get_session),
+    downsample: bool = Query(False),
 ) -> InstrumentExperimentChannelRead:
 
     res = await crud.get_model_by_id(model_id=id, session=session)
@@ -71,17 +72,18 @@ async def get_one(
         raise HTTPException(status_code=404, detail=f"ID: {id} not found")
 
     # Downsample points, may be necessary, rendering can get slow
-    # res.time_values, res.raw_values = largest_triangle_three_buckets(
-    #     res.time_values,
-    #     res.raw_values,
-    #     config.INSTRUMENT_PLOT_DOWNSAMPLE_THRESHOLD,
-    # )
+    if downsample:
+        res.time_values, res.raw_values = largest_triangle_three_buckets(
+            res.time_values,
+            res.raw_values,
+            config.INSTRUMENT_PLOT_DOWNSAMPLE_THRESHOLD,
+        )
 
-    # res.time_values, res.baseline_values = largest_triangle_three_buckets(
-    #     res.time_values,
-    #     res.baseline_values,
-    #     config.INSTRUMENT_PLOT_DOWNSAMPLE_THRESHOLD,
-    # )
+        res.time_values, res.baseline_values = largest_triangle_three_buckets(
+            res.time_values,
+            res.baseline_values,
+            config.INSTRUMENT_PLOT_DOWNSAMPLE_THRESHOLD,
+        )
     return res
 
 
@@ -124,8 +126,8 @@ async def update_one(
 
     update_data = instrument_experiment_update.model_dump(exclude_unset=True)
 
-    if "baseline_values" in update_data:
-        baseline_values = update_data["baseline_values"]
+    if "baseline_chosen_points" in update_data:
+        baseline_chosen_points = update_data["baseline_chosen_points"]
 
         x = np.array(channel.time_values)
         y = np.array(channel.raw_values)
@@ -134,7 +136,7 @@ async def update_one(
         spline = calculate_spline(
             x,
             y,
-            [bp["x"] for bp in baseline_values],
+            [bp["x"] for bp in baseline_chosen_points],
             interpolation_method="linear",
         )
         filtered_baseline = filter_baseline(y, spline)

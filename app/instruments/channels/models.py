@@ -6,7 +6,6 @@ import datetime
 
 if TYPE_CHECKING:
     from app.instruments.models.experiment import InstrumentExperiment
-    from app.instruments.models.data import InstrumentExperimentData
 
 
 class InstrumentExperimentChannelBase(SQLModel):
@@ -18,6 +17,7 @@ class InstrumentExperimentChannelBase(SQLModel):
     raw_values: list = Field(default=[], sa_column=Column(JSON))
     baseline_spline: list = Field(default=[], sa_column=Column(JSON))
     baseline_values: list = Field(default=[], sa_column=Column(JSON))
+    baseline_chosen_points: list = Field(default=[], sa_column=Column(JSON))
 
 
 class InstrumentExperimentChannel(InstrumentExperimentChannelBase, table=True):
@@ -40,7 +40,8 @@ class InstrumentExperimentChannelRead(InstrumentExperimentChannelBase):
 
 
 class InstrumentExperimentChannelUpdate(SQLModel):
-    baseline_values: list
+    baseline_values: list = []
+    baseline_chosen_points: list = []
 
 
 class InstrumentExperimentChannelCreate(InstrumentExperimentChannelBase):

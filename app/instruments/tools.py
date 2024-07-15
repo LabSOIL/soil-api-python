@@ -195,13 +195,15 @@ def largest_triangle_three_buckets(x, y, threshold):
 def calculate_spline(
     x: np.ndarray,
     y: np.ndarray,
-    baseline_values: List[float],
+    baseline_selected_points: List[float],
     interpolation_method: str,
 ) -> np.ndarray:
     fitter = pybaselines.Baseline(x, check_finite=False)
-    pairs = np.array([(bp, y[np.where(x == bp)][0]) for bp in baseline_values])
+    pairs = np.array(
+        [(bp, y[np.where(x == bp)][0]) for bp in baseline_selected_points]
+    )
 
-    if len(baseline_values) < 4:
+    if len(baseline_selected_points) < 4:
         spline = fitter.interp_pts(
             x.reshape(-1, 1),
             baseline_points=pairs,
