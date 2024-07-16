@@ -12,6 +12,7 @@ from app.instruments.tools import (
     calculate_spline,
     filter_baseline,
     largest_triangle_three_buckets,
+    calculate_integrals_for_pairs,
 )
 import numpy as np
 from app.config import config
@@ -137,7 +138,6 @@ async def update_one(
             update_data["baseline_spline"] = []
             update_data["baseline_values"] = []
         else:
-
             # Calculate the spline and filtered baseline
             spline = calculate_spline(
                 x,
@@ -150,6 +150,25 @@ async def update_one(
             # Update the instrument experiment data
             update_data["baseline_spline"] = spline.tolist()
             update_data["baseline_values"] = filtered_baseline.tolist()
+
+    if "integral_chosen_pairs" in update_data:
+        """
+        Calculate the integral for each pair of start and end and append them
+        to integral_results
+        """
+
+        # Assuming baseline_values and time_values are numpy arrays
+        baseline_values = np.array(channel.baseline_values)
+        time_values = np.array(channel.time_values)
+
+        integral_results = calculate_integrals_for_pairs(
+            update_data["integral_chosen_pairs"],
+            baseline_values,
+            time_values,
+            integration_method="simpson",
+        )
+
+        update_data["integral_results"] = integral_results
 
     # Update the instrument experiment model with the new data
     channel.sqlmodel_update(update_data)

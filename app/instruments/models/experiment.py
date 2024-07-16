@@ -59,6 +59,7 @@ class ChannelNoPoints(SQLModel):
     channel_name: str
     id: UUID
     baseline_values: list[Any] = []
+    integral_results: list[Any] = []
 
 
 class InstrumentExperimentRead(InstrumentExperimentBase):

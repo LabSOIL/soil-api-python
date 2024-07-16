@@ -18,6 +18,8 @@ class InstrumentExperimentChannelBase(SQLModel):
     baseline_spline: list = Field(default=[], sa_column=Column(JSON))
     baseline_values: list = Field(default=[], sa_column=Column(JSON))
     baseline_chosen_points: list = Field(default=[], sa_column=Column(JSON))
+    integral_chosen_pairs: list = Field(default=[], sa_column=Column(JSON))
+    integral_results: list = Field(default=[], sa_column=Column(JSON))
 
 
 class InstrumentExperimentChannel(InstrumentExperimentChannelBase, table=True):
@@ -37,11 +39,13 @@ class InstrumentExperimentChannel(InstrumentExperimentChannelBase, table=True):
 
 class InstrumentExperimentChannelRead(InstrumentExperimentChannelBase):
     id: UUID
+    experiment: Any
 
 
 class InstrumentExperimentChannelUpdate(SQLModel):
     baseline_values: list = []
     baseline_chosen_points: list = []
+    integral_chosen_pairs: list = []
 
 
 class InstrumentExperimentChannelCreate(InstrumentExperimentChannelBase):
