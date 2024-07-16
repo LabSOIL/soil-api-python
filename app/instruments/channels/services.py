@@ -132,18 +132,24 @@ async def update_one(
         x = np.array(channel.time_values)
         y = np.array(channel.raw_values)
 
-        # Calculate the spline and filtered baseline
-        spline = calculate_spline(
-            x,
-            y,
-            [bp["x"] for bp in baseline_chosen_points],
-            interpolation_method="linear",
-        )
-        filtered_baseline = filter_baseline(y, spline)
+        # If there are no points, remove the baseline
+        if not baseline_chosen_points:
+            update_data["baseline_spline"] = []
+            update_data["baseline_values"] = []
+        else:
 
-        # Update the instrument experiment data
-        update_data["baseline_spline"] = spline.tolist()
-        update_data["baseline_values"] = filtered_baseline.tolist()
+            # Calculate the spline and filtered baseline
+            spline = calculate_spline(
+                x,
+                y,
+                [bp["x"] for bp in baseline_chosen_points],
+                interpolation_method="linear",
+            )
+            filtered_baseline = filter_baseline(y, spline)
+
+            # Update the instrument experiment data
+            update_data["baseline_spline"] = spline.tolist()
+            update_data["baseline_values"] = filtered_baseline.tolist()
 
     # Update the instrument experiment model with the new data
     channel.sqlmodel_update(update_data)
