@@ -112,7 +112,8 @@ async def get_instrument_experiment_summary_data(
         header += [
             f"sample{i}_start",
             f"sample{i}_end",
-            f"sample{i}_area",
+            f"sample{i}_electrons_transferred_mol",
+            f"sample{i}_sample_name",
         ]
 
     # Create CSV rows
@@ -124,6 +125,7 @@ async def get_instrument_experiment_summary_data(
                 sample.get("start", "nan"),
                 sample.get("end", "nan"),
                 sample.get("area", "nan"),
+                sample.get("sample_name", "nan"),
             ]
         # Fill remaining values with 'nan' if the channel has fewer samples
         remaining_samples = max_samples - len(channel.integral_results)

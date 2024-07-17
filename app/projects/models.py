@@ -12,6 +12,7 @@ from sqlalchemy.sql import func
 
 if TYPE_CHECKING:
     from app.areas.models import Area
+    from app.instruments.models.experiment import InstrumentExperiment
 
 
 class ProjectBase(SQLModel):
@@ -48,6 +49,10 @@ class Project(ProjectBase, table=True):
     )
 
     areas: list["Area"] = Relationship(
+        back_populates="project",
+        sa_relationship_kwargs={"lazy": "selectin"},
+    )
+    instrument_experiments: list["InstrumentExperiment"] = Relationship(
         back_populates="project",
         sa_relationship_kwargs={"lazy": "selectin"},
     )

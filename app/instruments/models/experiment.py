@@ -4,6 +4,7 @@ from typing import Any, List, Optional
 import datetime
 from sqlalchemy.sql import func
 from app.instruments.channels.models import InstrumentExperimentChannel
+from app.projects.models import Project
 
 
 class InstrumentExperimentBase(SQLModel):
@@ -27,6 +28,9 @@ class InstrumentExperimentBase(SQLModel):
         description="Number of samples taken in the data file",
         default=None,
         nullable=True,
+    )
+    project_id: UUID | None = Field(
+        default=None, nullable=True, index=True, foreign_key="project.id"
     )
 
 
@@ -53,6 +57,10 @@ class InstrumentExperiment(InstrumentExperimentBase, table=True):
             "cascade": "all,delete,delete-orphan",
         },
     )
+    project: Project = Relationship(
+        sa_relationship_kwargs={"lazy": "selectin"},
+        back_populates="instrument_experiments",
+    )
 
 
 class ChannelNoPoints(SQLModel):
@@ -66,6 +74,7 @@ class InstrumentExperimentRead(InstrumentExperimentBase):
     id: UUID
     channels: List[ChannelNoPoints] = []
     last_updated: datetime.datetime | None = None
+    project: Any | None = None
 
 
 class InstrumentExperimentUpdate(InstrumentExperimentBase):

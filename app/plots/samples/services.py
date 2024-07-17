@@ -98,10 +98,12 @@ async def create_one(
                 ),
             )
         try:
-            print(data["plot_gradient"].lower(),
-                  data["area_name"].lower(),
-                  data["project_name"].lower(),
-                  data["plot_iterator"])
+            print(
+                data["plot_gradient"].lower(),
+                data["area_name"].lower(),
+                data["project_name"].lower(),
+                data["plot_iterator"],
+            )
 
             query = await session.exec(
                 select(Plot)
@@ -112,31 +114,31 @@ async def create_one(
                 )
                 .where(
                     # Cast to string because it's an enum
-                    func.lower(cast(Plot.gradient, sqlalchemy.String)) == data["plot_gradient"].lower()
+                    func.lower(cast(Plot.gradient, sqlalchemy.String))
+                    == data["plot_gradient"].lower()
                 )
                 .where(
                     func.lower(Area.name) == data["area_name"].lower(),
                 )
                 .where(
-                    func.lower(Project.name)
-                    == data["project_name"].lower()
+                    func.lower(Project.name) == data["project_name"].lower()
                 )
             )
-            # Print query as raw SQL
-            # print(query.statement.compile(compile_kwargs={"literal_binds": True}))
+
             plot = query.one()
             data["plot_id"] = plot.id
         except NoResultFound as e:
             print(e)
             raise ValidationError(
                 loc=["body"],
-                msg=("Plot with the given project name "
-                     f"({data['project_name']}), "
-                     f"area name ({data['area_name']}), "
-                     f"plot gradient ({data['plot_gradient']}), "
-                        f"and plot iterator ({data['plot_iterator']}) "
-                        "not found"),
-
+                msg=(
+                    "Plot with the given project name "
+                    f"({data['project_name']}), "
+                    f"area name ({data['area_name']}), "
+                    f"plot gradient ({data['plot_gradient']}), "
+                    f"and plot iterator ({data['plot_iterator']}) "
+                    "not found"
+                ),
             )
     else:
         try:
@@ -196,7 +198,8 @@ async def update_one(
                 )
                 .where(
                     # Cast to string because it's an enum
-                    func.lower(cast(Plot.gradient, sqlalchemy.String)) == update_data["plot_gradient"].lower()
+                    func.lower(cast(Plot.gradient, sqlalchemy.String))
+                    == update_data["plot_gradient"].lower()
                 )
                 .where(
                     func.lower(Area.name) == update_data["area_name"].lower(),

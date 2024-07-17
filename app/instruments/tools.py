@@ -217,6 +217,7 @@ def calculate_integrals_for_pairs(
                 "start": start,
                 "end": end,
                 "area": area,
+                "sample_name": pair["sample_name"],
             }
         )
 
