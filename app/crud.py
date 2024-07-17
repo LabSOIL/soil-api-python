@@ -4,8 +4,9 @@ from sqlmodel import select
 from typing import Any
 import json
 from sqlalchemy.sql import func
-from sqlalchemy import or_
+from sqlalchemy import or_, cast, String
 from uuid import UUID
+from sqlmodel import SQLModel
 
 
 class CRUD:
@@ -65,6 +66,8 @@ class CRUD:
         filter: str,
         sort: str,
         range: str,
+        filter_models_to_join: list[SQLModel] = [],
+        filter_fields_to_query: list[SQLModel] = [],
         session: AsyncSession = Depends(get_session),
     ) -> list:
         """Returns the data of a model with a filter applied
@@ -82,8 +85,7 @@ class CRUD:
             for field, value in filter.items():
                 if field == "q":
                     # If the field is 'q', do a full-text search on the
-                    # searchable fields (string fields only, but never UUIDs
-                    # or timestamps)
+                    # searchable fields
                     or_conditions = []
                     for (
                         prop_name,
@@ -91,18 +93,20 @@ class CRUD:
                     ) in self.db_model.model_json_schema()[
                         "properties"
                     ].items():
-                        if (
-                            prop_details.get("type") == "string"
-                            and prop_name not in self.exact_match_fields
-                            and prop_details.get("format") != "uuid"
-                            and prop_details.get("format") != "date-time"
-                        ):
-                            # Apply a LIKE filter for string matching case
-                            # insensitive
+
+                        column = cast(
+                            getattr(self.db_model, prop_name), String
+                        )
+                        or_conditions.append(
+                            func.coalesce(column, "").ilike(f"%{str(value)}%")
+                        )
+
+                    # continue
+                    if filter_fields_to_query and filter_models_to_join:
+                        query = query.join(*filter_models_to_join)
+                        for field_to_query in filter_fields_to_query:
                             or_conditions.append(
-                                getattr(self.db_model, prop_name).ilike(
-                                    f"%{str(value)}%"
-                                )
+                                field_to_query.ilike(f"%{value}%")
                             )
 
                     query = query.filter(or_(*or_conditions))
@@ -145,10 +149,11 @@ class CRUD:
                             )
                     else:
                         # Apply a LIKE filter for string matching
+                        print(field)
                         query = query.filter(
-                            getattr(self.db_model, field).like(
-                                f"%{str(value)}%"
-                            )
+                            func.coalesce(
+                                getattr(self.db_model, field), ""
+                            ).like(f"%{str(value)}%")
                         )
 
         if len(sort) == 2:
@@ -164,6 +169,7 @@ class CRUD:
             start, end = range
             query = query.offset(start).limit(end - start)
 
+        print(query.compile(compile_kwargs={"literal_binds": True}))
         res = await session.exec(query)
 
         return res.all()
@@ -174,6 +180,8 @@ class CRUD:
         sort: str,
         range: str,
         filter: str,
+        filter_models_to_join: list[SQLModel] = [],
+        filter_fields_to_query: list[SQLModel] = [],
         session: AsyncSession = Depends(get_session),
     ) -> int:
         """Returns the count of a model with a filter applied"""
@@ -186,26 +194,28 @@ class CRUD:
             for field, value in filter.items():
                 if field == "q":
                     # If the field is 'q', do a full-text search on the
-                    # searchable fields (string fields only, but never UUIDs
-                    # or timestamps)
+                    # searchable fields
                     or_conditions = []
-
                     for (
                         prop_name,
                         prop_details,
                     ) in self.db_model.model_json_schema()[
                         "properties"
                     ].items():
-                        if (
-                            prop_details.get("type") == "string"
-                            and prop_name not in self.exact_match_fields
-                            and prop_details.get("format") != "uuid"
-                            and prop_details.get("format") != "date-time"
-                        ):
+
+                        column = cast(
+                            getattr(self.db_model, prop_name), String
+                        )
+                        or_conditions.append(
+                            func.coalesce(column, "").ilike(f"%{str(value)}%")
+                        )
+
+                    # continue
+                    if filter_fields_to_query and filter_models_to_join:
+                        query = query.join(*filter_models_to_join)
+                        for field_to_query in filter_fields_to_query:
                             or_conditions.append(
-                                getattr(self.db_model, prop_name).ilike(
-                                    f"%{str(value)}%"
-                                )
+                                field_to_query.ilike(f"%{value}%")
                             )
 
                     query = query.filter(or_(*or_conditions))
@@ -250,9 +260,9 @@ class CRUD:
                     else:
                         # Apply a LIKE filter for string matching
                         query = query.filter(
-                            getattr(self.db_model, field).like(
-                                f"%{str(value)}%"
-                            )
+                            func.coalesce(
+                                getattr(self.db_model, field), ""
+                            ).like(f"%{str(value)}%")
                         )
 
         count = await session.exec(query)

@@ -28,6 +28,9 @@ router = APIRouter()
 
 crud = CRUD(Plot, PlotReadWithSamples, PlotCreate, PlotUpdate)
 
+TABLES_TO_JOIN = [Area]
+FIELDS_TO_QUERY = [Area.name]
+
 
 async def get_count(
     response: Response,
@@ -36,12 +39,15 @@ async def get_count(
     sort: str = Query(None),
     session: AsyncSession = Depends(get_session),
 ):
+
     count = await crud.get_total_count(
         response=response,
         sort=sort,
         range=range,
         filter=filter,
         session=session,
+        filter_models_to_join=TABLES_TO_JOIN,
+        filter_fields_to_query=FIELDS_TO_QUERY,
     )
 
     return count
@@ -53,12 +59,16 @@ async def get_data(
     range: str = Query(None),
     session: AsyncSession = Depends(get_session),
 ):
+
     res = await crud.get_model_data(
         sort=sort,
         range=range,
         filter=filter,
         session=session,
+        filter_models_to_join=TABLES_TO_JOIN,
+        filter_fields_to_query=FIELDS_TO_QUERY,
     )
+    print("Total results:", len(res))
 
     return res
 

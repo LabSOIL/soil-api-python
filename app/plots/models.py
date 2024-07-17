@@ -19,6 +19,8 @@ from sqlalchemy.sql import func
 from app.transects.models.nodes import TransectNode
 from app.transects.models.transects import Transect
 import enum
+import sqlalchemy as sa
+from sqlalchemy_utils.types.ts_vector import TSVectorType
 
 if TYPE_CHECKING:
     from app.areas.models import Area
@@ -112,7 +114,6 @@ class Plot(PlotBase, table=True):
         index=True,
         nullable=False,
     )
-
     geom: Any = Field(
         default=None, sa_column=Column(Geometry("POINTZ", srid=config.SRID))
     )
