@@ -1,3 +1,4 @@
+from app.instruments.tools import find_header_start
 from app.instruments.models.experiment import (
     InstrumentExperiment,
     InstrumentExperimentRead,
@@ -76,28 +77,16 @@ async def create_one(
     session: AsyncSession = Depends(get_session),
 ) -> InstrumentExperiment:
 
-    # print(instrument_experiment.data_base64)
     decoded_data, filetype = decode_base64(instrument_experiment.data_base64)
     decoded_data = decoded_data.decode("utf-8").split("\n")
-    # print(filetype)
-    # print(decoded_data.decode("utf-8"))
-
-    from app.instruments.tools import find_header_start
 
     # Find the header start
     header_start = find_header_start(decoded_data)
-
-    print(f"Header found at line {header_start}")
-
-    # Import data
-    # measurements = {}
-    # with open(filename_path, "r") as f:
 
     reader = csv.reader(decoded_data, delimiter=",")
     lines = list(reader)
 
     header = lines[header_start]
-    print("HEADER:", header)
 
     # Seek the lines after the header until there is data (sometimes there are
     # empty lines after the header)
@@ -140,24 +129,14 @@ async def create_one(
 
     Time/s, i1/A, i2/A, i3/A, i4/A, i5/A, i6/A, i7/A, i8/A
 
-    5.000e+0, 3.138e-5, 2.966e-5, 1.468e-5, 1.975e-5, 6.805e-6, 9.386e-6, -1.301e-6, -1.295e-6
-    1.000e+1, 2.905e-5, 2.848e-5, 1.517e-5, 1.899e-5, 6.345e-6, 8.992e-6, -1.195e-6, -1.198e-6
-    1.500e+1, 2.843e-5, 2.803e-5, 1.496e-5, 1.955e-5, 7.387e-6, 8.686e-6, -1.257e-6, -1.232e-6
-    2.000e+1, 2.886e-5, 2.762e-5, 1.557e-5, 1.936e-5, 7.118e-6, 8.613e-6, -1.195e-6, -1.236e-6
-    2.500e+1, 2.909e-5, 2.744e-5, 1.403e-5, 1.888e-5, 7.515e-6, 8.710e-6, -1.242e-6, -1.179e-6
-    3.000e+1, 2.835e-5, 2.739e-5, 1.514e-5, 1.955e-5, 6.985e-6, 8.677e-6, -1.180e-6, -1.203e-6
+    5.000e+0, 3.138e-5, 2.966e-5, 1.468e-5, 1.975e-5, 6.805e-6, 9.386e-6, -1.301e-6, -1.295e-6  # noqa
+    1.000e+1, 2.905e-5, 2.848e-5, 1.517e-5, 1.899e-5, 6.345e-6, 8.992e-6, -1.195e-6, -1.198e-6  # noqa
+    1.500e+1, 2.843e-5, 2.803e-5, 1.496e-5, 1.955e-5, 7.387e-6, 8.686e-6, -1.257e-6, -1.232e-6  # noqa
+    2.000e+1, 2.886e-5, 2.762e-5, 1.557e-5, 1.936e-5, 7.118e-6, 8.613e-6, -1.195e-6, -1.236e-6  # noqa
+    2.500e+1, 2.909e-5, 2.744e-5, 1.403e-5, 1.888e-5, 7.515e-6, 8.710e-6, -1.242e-6, -1.179e-6  # noqa
+    3.000e+1, 2.835e-5, 2.739e-5, 1.514e-5, 1.955e-5, 6.985e-6, 8.677e-6, -1.180e-6, -1.203e-6  # noqa
 
     """
-
-    # Combine the data into channel [(column_id, (time, value)), ...] and
-    # then create the channel row where time is the x-axis and value is the
-    # y-axis
-    # channel = InstrumentExperimentChannel(
-    #     channel_name=column.strip(),
-    #     experiment_id=experiment.id,
-    #     time_values=[],
-    #     raw_values=[]
-    # )
 
     time = []
     # Create a time array

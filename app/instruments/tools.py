@@ -1,42 +1,5 @@
-#!/usr/bin/env python3
-"""
-This file contains the functions that support data transformations
-during the processes in the SOIL lab.
-"""
 import numpy as np
-
-# import pandas as pd
-
-# from lab_toolbox.constants import constants
-# import plotly.graph_objs as go
-from typing import Dict, Tuple, List, Any
-
-# from plotly.subplots import make_subplots
-# from scipy.integrate import simpson
-import os
-import csv
 from typing import List, Dict
-import numpy as np
-from scipy import integrate
-
-# from scipy.integrate import simpson
-
-# import pybaselines
-
-# from scipy.constants import physical_constants
-import datetime
-
-from app.instruments.channels.models import (
-    InstrumentExperimentChannel,
-    InstrumentExperimentChannelRead,
-)
-from app.config import config
-from typing import List, Dict
-from uuid import UUID
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
-import numpy as np
 import pybaselines
 from scipy.constants import physical_constants
 from scipy.integrate import simpson
@@ -256,5 +219,8 @@ def calculate_integrals_for_pairs(
                 "area": area,
             }
         )
+
+    # Sort the list in order of the start point
+    integration_results = sorted(integration_results, key=lambda x: x["start"])
 
     return integration_results

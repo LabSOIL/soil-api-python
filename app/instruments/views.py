@@ -20,6 +20,7 @@ from app.instruments.services import (
     delete_many,
     update_one,
 )
+import csv
 
 router = APIRouter()
 
@@ -31,6 +32,107 @@ async def get_instrument_experiment(
     """Get an experiment by id"""
 
     return obj
+
+
+@router.get("/{id}/raw")
+async def get_instrument_experiment_rawdata(
+    obj: InstrumentExperiment = Depends(get_one),
+) -> Any:
+    """Get an experiment's raw data by id, and all of its channels as CSV
+
+    The time column is equivalent for each channel, the channel header is
+    `channel_name` of each channel, and the value to fill is `raw_values`
+    """
+
+    header = ["Time/s"]
+    # Sort channels by channel_name
+    channels = sorted(obj.channels, key=lambda x: x.channel_name)
+    header += [f"{channel.channel_name}" for channel in channels]
+
+    # Form CSV by looping through each column and its data using the structure
+    # defined in the docstring
+    csv_data = [header]
+    for i in range(len(obj.channels[0].raw_values)):
+        row = [obj.channels[0].time_values[i]]
+        row += [channel.raw_values[i] for channel in channels]
+        csv_data.append(row)
+
+    return csv_data
+
+
+@router.get("/{id}/filtered")
+async def get_instrument_experiment_baseline_filtered_data(
+    obj: InstrumentExperiment = Depends(get_one),
+) -> Any:
+    """Get an experiment's baseline filtered data as CSV
+
+    The time column is equivalent for each channel, the channel header is
+    `channel_name` of each channel, and the value to fill is `baseline_values`
+    """
+
+    header = ["Time/s"]
+    # Sort channels by channel_name
+    channels = sorted(obj.channels, key=lambda x: x.channel_name)
+    header += [f"{channel.channel_name}" for channel in channels]
+
+    # Form CSV by looping through each column and its data using the structure
+    # defined in the docstring
+    csv_data = [header]
+    for i in range(len(obj.channels[0].raw_values)):
+        row = [obj.channels[0].time_values[i]]
+
+        # If there are no baseline values for a channel at the current index
+        # then fill with None
+        for channel in channels:
+            if len(channel.baseline_values) <= i:
+                row.append(None)
+            else:
+                row.append(channel.baseline_values[i])
+
+        # row += [channel.baseline_values[i] for channel in channels]
+        csv_data.append(row)
+
+    return csv_data
+
+
+@router.get("/{id}/summary")
+async def get_instrument_experiment_summary_data(
+    obj: InstrumentExperiment = Depends(get_one),
+) -> Any:
+    """Create a CSV return that returns the channel integral data"""
+
+    header = ["measurement"]
+    channels = sorted(obj.channels, key=lambda x: x.channel_name)
+
+    # Find the maximum number of samples
+    max_samples = max(len(channel.integral_results) for channel in channels)
+
+    # Construct the header
+    for i in range(1, max_samples + 1):
+        header += [
+            f"sample{i}_start",
+            f"sample{i}_end",
+            f"sample{i}_area",
+        ]
+
+    # Create CSV rows
+    csv_data = [header]
+    for channel in channels:
+        row = [channel.channel_name]
+        for sample in channel.integral_results:
+            row += [
+                sample.get("start", "nan"),
+                sample.get("end", "nan"),
+                sample.get("area", "nan"),
+            ]
+        # Fill remaining values with 'nan' if the channel has fewer samples
+        remaining_samples = max_samples - len(channel.integral_results)
+        row += ["nan"] * (
+            remaining_samples * 3
+        )  # Adjust multiplier if peak_time and peak_value are included
+        csv_data.append(row)
+
+    return csv_data
 
 
 @router.get("", response_model=list[InstrumentExperimentRead])
