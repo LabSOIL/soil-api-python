@@ -71,9 +71,10 @@ async def get_instrument_experiment_baseline_filtered_data(
     sample.
     """
 
-    # Extract all integral results and combine them into a single list with
-    # channel prefixes
-    integral_results = []
+    # Extract all sample slices from the integral table and combine them into a
+    # single list with channel prefixes, get the baseline_values for the ranges
+    # defined by the start and end values
+    samples = []
     for channel in obj.channels:
         for result in channel.integral_results:
             result["channel_name"] = channel.channel_name
@@ -85,25 +86,34 @@ async def get_instrument_experiment_baseline_filtered_data(
                 .lower()
                 .replace(" ", "_")
             )
+            # Get baseline data, the data matches the time values, but they are
+            # incremented in steps, not incremental indices, so we will need
+            # to find the index of the start and end values in the time_values
+            # to get the corresponding baseline_values index
+            start_index = channel.time_values.index(result["start"])
+            end_index = channel.time_values.index(result["end"])
+            result["baseline_values"] = channel.baseline_values[
+                start_index:end_index
+            ]
 
-            integral_results.append(result)
+            samples.append(result)
 
     # Check all column names are unique if not, just add the enumerator
-    for i, result in enumerate(integral_results):
-        for j, result2 in enumerate(integral_results):
+    for i, result in enumerate(samples):
+        for j, result2 in enumerate(samples):
             if i != j and result["column"] == result2["column"]:
-                integral_results[i]["column"] = f"{result['column']}_{i}"
+                samples[i]["column"] = f"{result['column']}_{i}"
 
-    integral_results = sorted(integral_results, key=lambda x: x["column"])
+    samples = sorted(samples, key=lambda x: x["column"])
 
-    # Adjust time for each integral result such that the start is at 0
-    for result in integral_results:
-        result["end"] = result["end"] - result["start"]
-        result["start"] = 0
+    # Adjust time for each sample such that the start is at 0
+    for result in samples:
+        result["adjusted_end"] = result["end"] - result["start"]
+        result["adjusted_start"] = 0
 
     # Form CSV header with time and defined column name from above
     header = ["time/s"]
-    header += [f"{result['column']}" for result in integral_results]
+    header += [f"{result['column']}" for result in samples]
 
     # Initialize csv_data with header
     csv_data = [header]
@@ -112,20 +122,30 @@ async def get_instrument_experiment_baseline_filtered_data(
         obj.channels[0].time_values[1] - obj.channels[0].time_values[0]
     )
 
-    # Find the maximum time value of the longest integral result
-    max_time = max(result["end"] for result in integral_results)
+    # Find the maximum time value of the longest sample in duration
+    max_time = max(result["end"] for result in samples)
 
     # Loop through each time value and fill the row with the corresponding
-    # integral result value, starting the time at 0 and incrementing by the
+    # baseline filterd value, starting the time at 0 and incrementing by the
     # time step. The max time is the max time value of the longest
-    # integral_result
-    for time in range(0, max_time, time_step):
+    # sample in duration
+    for i, time in enumerate(range(0, max_time, time_step)):
         row = [time]
-        for result in integral_results:
-            if result["start"] <= time <= result["end"]:
-                row.append(result["area"])
-            else:
+        empty_data = 0
+        for result in samples:
+            # We just need to add the data sequentially for all the samples
+            # the time doesn't matter, so we just can use the index. But we
+            # will need to be sure that the index exists otherwise we will
+            # get an index error
+            try:
+                row.append(result["baseline_values"][i])
+            except IndexError:
+                empty_data += 1
                 row.append(None)
+
+        # Stop when there is no data left
+        if empty_data == len(samples):
+            break
 
         csv_data.append(row)
 
