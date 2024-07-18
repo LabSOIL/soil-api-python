@@ -64,32 +64,69 @@ async def get_instrument_experiment_rawdata(
 async def get_instrument_experiment_baseline_filtered_data(
     obj: InstrumentExperiment = Depends(get_one),
 ) -> Any:
-    """Get an experiment's baseline filtered data as CSV
+    """Get an experiment's baseline filtered data as CSV for each sample
 
-    The time column is equivalent for each channel, the channel header is
-    `channel_name` of each channel, and the value to fill is `baseline_values`
+    The time start values have been reduced to 0 and no longer represent the
+    actual time values from the instrument, but rather the duration of the
+    sample.
     """
 
-    header = ["Time/s"]
-    # Sort channels by channel_name
-    channels = sorted(obj.channels, key=lambda x: x.channel_name)
-    header += [f"{channel.channel_name}" for channel in channels]
+    # Extract all integral results and combine them into a single list with
+    # channel prefixes
+    integral_results = []
+    for channel in obj.channels:
+        for result in channel.integral_results:
+            result["channel_name"] = channel.channel_name
+            result["column"] = (
+                (
+                    f"{channel.channel_name}_"
+                    f"{result.get('sample_name', f'undefined')}"
+                )
+                .lower()
+                .replace(" ", "_")
+            )
 
-    # Form CSV by looping through each column and its data using the structure
-    # defined in the docstring
+            integral_results.append(result)
+
+    # Check all column names are unique if not, just add the enumerator
+    for i, result in enumerate(integral_results):
+        for j, result2 in enumerate(integral_results):
+            if i != j and result["column"] == result2["column"]:
+                integral_results[i]["column"] = f"{result['column']}_{i}"
+
+    integral_results = sorted(integral_results, key=lambda x: x["column"])
+
+    # Adjust time for each integral result such that the start is at 0
+    for result in integral_results:
+        result["end"] = result["end"] - result["start"]
+        result["start"] = 0
+
+    # Form CSV header with time and defined column name from above
+    header = ["time/s"]
+    header += [f"{result['column']}" for result in integral_results]
+
+    # Initialize csv_data with header
     csv_data = [header]
-    for i in range(len(obj.channels[0].raw_values)):
-        row = [obj.channels[0].time_values[i]]
 
-        # If there are no baseline values for a channel at the current index
-        # then fill with None
-        for channel in channels:
-            if len(channel.baseline_values) <= i:
-                row.append(None)
+    time_step = int(  # Get the time step from the first channel
+        obj.channels[0].time_values[1] - obj.channels[0].time_values[0]
+    )
+
+    # Find the maximum time value of the longest integral result
+    max_time = max(result["end"] for result in integral_results)
+
+    # Loop through each time value and fill the row with the corresponding
+    # integral result value, starting the time at 0 and incrementing by the
+    # time step. The max time is the max time value of the longest
+    # integral_result
+    for time in range(0, max_time, time_step):
+        row = [time]
+        for result in integral_results:
+            if result["start"] <= time <= result["end"]:
+                row.append(result["area"])
             else:
-                row.append(channel.baseline_values[i])
+                row.append(None)
 
-        # row += [channel.baseline_values[i] for channel in channels]
         csv_data.append(row)
 
     return csv_data
