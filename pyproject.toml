@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "soil-api"
-version = "1.2.0"
+version = "1.2.1"
 description = "API to manage data for SOIL lab"
 authors = ["Evan Thomas <evan.thomas@epfl.ch>"]
 readme = "README.md"
