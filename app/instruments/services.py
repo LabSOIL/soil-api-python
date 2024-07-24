@@ -78,30 +78,37 @@ async def create_one(
 ) -> InstrumentExperiment:
 
     decoded_data, filetype = decode_base64(instrument_experiment.data_base64)
-    decoded_data = decoded_data.decode("utf-8").split("\n")
 
-    # Find the header start
-    header_start = find_header_start(decoded_data)
-
-    reader = csv.reader(decoded_data, delimiter=",")
-    lines = list(reader)
-
-    header = lines[header_start]
-
-    # Seek the lines after the header until there is data (sometimes there are
-    # empty lines after the header)
-    data_start = header_start + 1
-    while not lines[data_start]:
-        data_start += 1
-
-    # Try to get date from the first line if we can ..., it is structured like:
-    # June 16, 2023   19:48:38
-    # ... :(
     try:
-        date_str = decoded_data[0]
-        date = datetime.datetime.strptime(date_str, "%B %d, %Y   %H:%M:%S")
-    except ValueError:
-        date = None
+        decoded_data = decoded_data.decode("utf-8").split("\n")
+
+        # Find the header start
+        header_start = find_header_start(decoded_data)
+
+        reader = csv.reader(decoded_data, delimiter=",")
+        lines = list(reader)
+
+        header = lines[header_start]
+
+        # Seek the lines after the header until there is data (sometimes there are
+        # empty lines after the header)
+        data_start = header_start + 1
+        while not lines[data_start]:
+            data_start += 1
+
+        # Try to get date from the first line if we can ..., it is structured like:
+        # June 16, 2023   19:48:38
+        # ... :(
+        try:
+            date_str = decoded_data[0]
+            date = datetime.datetime.strptime(date_str, "%B %d, %Y   %H:%M:%S")
+        except ValueError:
+            date = None
+    except Exception:
+        raise HTTPException(
+            status_code=415,
+            detail="Input data not formatted correctly or unsupported",
+        )
 
     # Create an Experiment
     experiment = InstrumentExperiment(

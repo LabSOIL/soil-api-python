@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2024-07-24
+
+### Added
+
+- Transect fields to `plot`.
+
+### Fixed
+
+- Exception called if the file uploaded is incompatible with instrument processing.
+
 ## [1.2.1] - 2024-07-19
 
 ### Fixed
@@ -56,8 +66,9 @@ Enum field.
 by the API are resized to a defined maximum size in the config file.
 - Date updated column in all tables.
 
-[unreleased]: https://github.com/LabSOIL/soil-api/compare/v1.2.1...HEAD
-[1.2.1]: https://github.com/LabSOIL/soil-api/compare/0.2.0...1.2.1
-[1.2.0]: https://github.com/LabSOIL/soil-api/compare/0.1.2...1.2.0
+[unreleased]: https://github.com/LabSOIL/soil-api/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/LabSOIL/soil-api/compare/1.2.0...1.2.2
+[1.2.1]: https://github.com/LabSOIL/soil-api/compare/1.2.0...1.2.1
+[1.2.0]: https://github.com/LabSOIL/soil-api/compare/1.1.2...1.2.0
 [1.1.2]: https://github.com/LabSOIL/soil-api/compare/0.0.1...0.1.2
 [1.1.3]: https://github.com/LabSOIL/soil-api/compare/0.0.2...0.1.3
