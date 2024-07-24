@@ -216,6 +216,7 @@ class PlotReadWithArea(PlotRead):
 class PlotReadWithSamples(PlotReadWithArea):
     samples: list[Any] = []
     area: Any
+    transects: list[Any] = []
 
 
 class PlotCreate(PlotBase):
