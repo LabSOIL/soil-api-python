@@ -17,12 +17,15 @@ from app.exceptions import ValidationError
 from sqlalchemy.exc import NoResultFound
 import sqlalchemy
 from sqlalchemy.sql import cast
-
+from sqlalchemy.exc import IntegrityError
 
 router = APIRouter()
 crud = CRUD(
     PlotSample, PlotSampleReadWithPlot, PlotSampleCreate, PlotSampleUpdate
 )
+
+TABLES_TO_JOIN = [Plot, Area, Project]
+FIELDS_TO_QUERY = [Plot.name, Area.name, Project.name]
 
 
 async def get_count(
@@ -38,6 +41,8 @@ async def get_count(
         range=range,
         filter=filter,
         session=session,
+        filter_models_to_join=TABLES_TO_JOIN,
+        filter_fields_to_query=FIELDS_TO_QUERY,
     )
 
     return count
@@ -54,6 +59,8 @@ async def get_data(
         range=range,
         filter=filter,
         session=session,
+        filter_models_to_join=TABLES_TO_JOIN,
+        filter_fields_to_query=FIELDS_TO_QUERY,
     )
 
     return res
@@ -151,13 +158,21 @@ async def create_one(
                 loc=["body", "plot_id"],
                 msg=f"Plot ID: {data.get('plot_id')} not found",
             )
-    obj = PlotSample.model_validate(data)
+    try:
+        obj = PlotSample.model_validate(data)
 
-    session.add(obj)
+        session.add(obj)
 
-    await session.commit()
-    await session.refresh(obj)
-
+        await session.commit()
+        await session.refresh(obj)
+    except IntegrityError:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Either the sample name is not unique, or a sample with the "
+                "same replicate, upper and lower depth already exists."
+            ),
+        )
     return obj
 
 

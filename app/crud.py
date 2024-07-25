@@ -103,7 +103,8 @@ class CRUD:
 
                     # continue
                     if filter_fields_to_query and filter_models_to_join:
-                        query = query.join(*filter_models_to_join)
+                        for model in filter_models_to_join:
+                            query = query.join(model)
                         for field_to_query in filter_fields_to_query:
                             or_conditions.append(
                                 field_to_query.ilike(f"%{value}%")
@@ -132,7 +133,7 @@ class CRUD:
                         or_conditions = []
                         for v in value:
                             or_conditions.append(
-                                getattr(self.db_model, field).like(
+                                getattr(self.db_model, field).ilike(
                                     f"%{str(v)}%"
                                 )
                             )
@@ -147,13 +148,17 @@ class CRUD:
                             query = query.filter(
                                 ~getattr(self.db_model, field).has()
                             )
+                    elif isinstance(value, int):
+                        query = query.filter(
+                            getattr(self.db_model, field) == value
+                        )
                     else:
                         # Apply a LIKE filter for string matching
                         print(field)
                         query = query.filter(
                             func.coalesce(
                                 getattr(self.db_model, field), ""
-                            ).like(f"%{str(value)}%")
+                            ).ilike(f"%{str(value)}%")
                         )
 
         if len(sort) == 2:
@@ -212,7 +217,8 @@ class CRUD:
 
                     # continue
                     if filter_fields_to_query and filter_models_to_join:
-                        query = query.join(*filter_models_to_join)
+                        for model in filter_models_to_join:
+                            query = query.join(model)
                         for field_to_query in filter_fields_to_query:
                             or_conditions.append(
                                 field_to_query.ilike(f"%{value}%")
@@ -241,7 +247,7 @@ class CRUD:
                         or_conditions = []
                         for v in value:
                             or_conditions.append(
-                                getattr(self.db_model, field).like(
+                                getattr(self.db_model, field).ilike(
                                     f"%{str(v)}%"
                                 )
                             )
@@ -257,12 +263,16 @@ class CRUD:
                             query = query.filter(
                                 ~getattr(self.db_model, field).has()
                             )
+                    elif isinstance(value, int):
+                        query = query.filter(
+                            getattr(self.db_model, field) == value
+                        )
                     else:
                         # Apply a LIKE filter for string matching
                         query = query.filter(
                             func.coalesce(
                                 getattr(self.db_model, field), ""
-                            ).like(f"%{str(value)}%")
+                            ).ilike(f"%{str(value)}%")
                         )
 
         count = await session.exec(query)

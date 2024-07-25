@@ -9,16 +9,16 @@ import datetime
 from sqlalchemy.sql import func
 
 
-class PlotSampleNames(str, Enum):
-    A = "A"
-    B = "B"
-    C = "C"
-
-
 class PlotSampleBase(SQLModel):
-    name: PlotSampleNames = Field(
+    name: str = Field(
         default=None,
         index=True,
+    )
+    replicate: int = Field(
+        default=1,
+        nullable=False,
+        title="Replicate of sample",
+        description="Replicate number of the sample",
     )
     created_on: datetime.date | None = Field(
         default=None,
@@ -133,7 +133,6 @@ class PlotSampleBase(SQLModel):
         title="Sand (%)",
         description="Percentage of sand by volume",
     )
-
     fe_ug_per_g: float | None = Field(
         default=None,
         nullable=True,
@@ -247,6 +246,13 @@ class PlotSample(PlotSampleBase, table=True):
             "name",
             "plot_id",
             name="unique_plot_sample",
+        ),
+        UniqueConstraint(
+            "plot_id",
+            "replicate",
+            "upper_depth_cm",
+            "lower_depth_cm",
+            name="unique_plot_sample_depth",
         ),
     )
     iterator: int = Field(
