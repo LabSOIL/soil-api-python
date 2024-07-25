@@ -148,6 +148,18 @@ class GenericNameIDPointModel(GenericNameIDModel):
         return values
 
 
+class TransectSimple(SQLModel):
+    id: UUID
+    name: str | None = None
+    description: str | None = None
+    area_id: UUID | None = None
+    nodes: list[GenericNameIDPointModel] = []
+
+
+class PlotSimple(GenericNameIDPointModel):
+    samples: list[Any] = []
+
+
 class AreaRead(AreaBase):
     id: UUID  # We use the UUID as the return ID
     geom: Any | None = None
@@ -156,7 +168,7 @@ class AreaRead(AreaBase):
     soil_profiles: list[GenericNameIDPointModel] = []
     plots: list[GenericNameIDPointModel] = []
     sensors: list[GenericNameIDPointModel] = []
-    transects: list[Any] = []
+    transects: list[TransectSimple] = []
 
     @model_validator(mode="after")
     def convert_wkb_to_json(cls, values: Any) -> Any:
