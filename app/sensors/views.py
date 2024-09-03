@@ -15,7 +15,7 @@ from app.sensors.services import (
     get_data,
     get_one,
     create_one,
-    # update_one,
+    update_one,
     crud,
 )
 
@@ -53,24 +53,9 @@ async def create_sensor(
 
 @router.put("/{sensor_id}", response_model=SensorRead)
 async def update_sensor(
-    sensor_update: SensorUpdate,
-    *,
-    sensor: SensorRead = Depends(get_one),
-    session: AsyncSession = Depends(get_session),
+    sensor: SensorRead = Depends(update_one),
 ) -> SensorRead:
     """Update a sensor by id"""
-
-    update_data = sensor_update.model_dump(exclude_unset=True)
-
-    if sensor_update.data_base64:
-        # Decode Base64 CSV data and add it to SensorData table
-        print("Data available!", len(sensor_update.data_base64))
-
-    sensor.sqlmodel_update(update_data)
-
-    session.add(sensor)
-    await session.commit()
-    await session.refresh(sensor)
 
     return sensor
 

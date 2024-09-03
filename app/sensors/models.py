@@ -53,7 +53,10 @@ class Sensor(SensorBase, table=True):
     )
     data: list["SensorData"] = Relationship(
         back_populates="sensor",
-        sa_relationship_kwargs={"lazy": "selectin"},
+        sa_relationship_kwargs={
+            "lazy": "selectin",
+            "cascade": "all,delete,delete-orphan",
+        },
     )
 
 
@@ -96,6 +99,10 @@ class SensorDataBase(SQLModel):
         nullable=True,
     )
     temperature_3: float | None = Field(
+        index=True,
+        nullable=True,
+    )
+    temperature_average: float | None = Field(
         index=True,
         nullable=True,
     )
@@ -155,6 +162,10 @@ class SensorDataRead(SensorDataBase):
     sensor: Any
 
 
+class SensorDataCreate(SensorDataBase):
+    pass
+
+
 class SensorRead(SensorBase):
     id: UUID
     area_id: UUID
@@ -166,6 +177,7 @@ class SensorRead(SensorBase):
     coord_srid: int | None = None
 
     area: Any | None = None
+    data: list[Any] | None = None
 
     @model_validator(mode="after")
     def convert_wkb_to_x_y(
@@ -257,4 +269,4 @@ class SensorCreate(SensorBase):
 
 
 class SensorUpdate(SensorCreate):
-    data_base64: str | None = None  # Base64 encoded CSV data
+    pass

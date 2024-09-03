@@ -3,12 +3,17 @@ from app.sensors.models import (
     Sensor,
     SensorCreate,
     SensorUpdate,
+    SensorDataCreate,
+    SensorData,
 )
 from app.db import get_session, AsyncSession
 from fastapi import Depends, APIRouter, Query, Response, HTTPException
-from sqlmodel import select
+from sqlmodel import select, delete
 from uuid import UUID
 from app.crud import CRUD
+from app.utils.funcs import decode_base64
+import csv
+from datetime import datetime
 
 crud = CRUD(Sensor, SensorRead, SensorCreate, SensorUpdate)
 
@@ -60,52 +65,103 @@ async def get_one(
     return res
 
 
+def ingest_csv_data(
+    sensor_data: bytes,
+    sensor_id: UUID,
+) -> list[SensorData]:
+
+    lines = sensor_data.decode("utf-8").split("\n")
+    objs = []
+    for line in lines:
+        if line:
+            data = line.split(";")
+
+            time_utc = datetime.strptime(data[1], "%Y.%m.%d %H:%M")
+            sensor_data_obj = SensorData(
+                instrument_seq=int(data[0]),
+                time_utc=time_utc,
+                time_zone=int(data[2]),
+                temperature_1=float(data[3]),
+                temperature_2=float(data[4]),
+                temperature_3=float(data[5]),
+                temperature_average=(
+                    (float(data[3]) + float(data[4]) + float(data[5])) / 3
+                ),
+                soil_moisture_count=int(data[6]),
+                shake=int(data[7]),
+                error_flat=int(data[8]),
+                sensor_id=sensor_id,
+            )
+
+            objs.append(sensor_data_obj)
+
+    return objs
+
+
 async def create_one(
     sensor: SensorCreate,
     session: AsyncSession = Depends(get_session),
-) -> list[Sensor]:
-    # """Create a single gnss
-
-    # To be used in both create one and create many endpoints
-    # """
-
-    # gpx_data, filetype = decode_base64(data["data_base64"])
-    # if filetype != "gpx":
-    #     raise HTTPException(
-    #         status_code=400,
-    #         detail="Only GPX files are supported",
-    #     )
-    # parsed_data = parse_gpx(gpx_data)
-
-    # objs = []
-    # for row in parsed_data:
-    #     obj = GNSS(
-    #         latitude=row["latitude"],
-    #         longitude=row["longitude"],
-    #         elevation_gps=row["elevation"],
-    #         time=row["time"],
-    #         name=row["name"],
-    #         comment=row["comment"],
-    #         original_filename=data["filename"],
-    #         x=row["x"],
-    #         y=row["y"],
-    #     )
-
-    #     objs.append(obj)
-
-    # session.add_all(objs)
-    # await session.commit()
-
-    # return objs
+) -> Sensor:
 
     sensor_obj = Sensor.model_validate(sensor)
-
-    if sensor.data_base64:
-        # Decode Base64 CSV data and add it to SensorData table
-        print("Data available!", len(sensor.data_base64))
 
     session.add(sensor_obj)
     await session.commit()
     await session.refresh(sensor_obj)
 
+    if sensor.data_base64:
+        # Decode Base64 CSV data and add it to SensorData table
+        sensor_data, filetype = decode_base64(sensor.data_base64)
+        if filetype != "csv":
+            raise HTTPException(
+                status_code=400,
+                detail="Only CSV files are supported",
+            )
+
+        data_objs = ingest_csv_data(sensor_data, sensor_obj.id)
+        session.add_all(data_objs)
+
+    await session.commit()
+    await session.refresh(sensor_obj)
+
     return sensor_obj
+
+
+async def update_one(
+    sensor_update: SensorUpdate,
+    sensor: SensorRead = Depends(get_one),
+    session: AsyncSession = Depends(get_session),
+) -> SensorRead:
+
+    update_data = sensor_update.model_dump(exclude_unset=True)
+
+    sensor.sqlmodel_update(update_data)
+    session.add(sensor)
+
+    if sensor_update.data_base64:
+        # Decode Base64 CSV data and add it to SensorData table
+        sensor_data, filetype = decode_base64(sensor_update.data_base64)
+        if filetype != "csv":
+            raise HTTPException(
+                status_code=400,
+                detail="Only CSV files are supported",
+            )
+
+        # Delete first all the data for this sensor
+        query = select(SensorData).where(SensorData.sensor_id == sensor.id)
+        res = await session.exec(query)
+        res_objs = res.all()
+
+        for obj in res_objs:
+            await session.delete(obj)
+
+        await session.commit()
+
+        # Now add the new data
+        data_objs = ingest_csv_data(sensor_data, sensor.id)
+        session.add_all(data_objs)
+
+    await session.commit()
+    await session.refresh(sensor)
+
+    return sensor
