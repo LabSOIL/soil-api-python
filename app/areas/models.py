@@ -84,7 +84,7 @@ class Area(AreaBase, table=True):
 
 
 class GenericNameIDModel(SQLModel):
-    name: str
+    name: str | None = None
     id: UUID
 
 

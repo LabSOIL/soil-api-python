@@ -16,6 +16,7 @@ from fastapi import (
 from uuid import UUID
 from app.crud import CRUD
 from app.areas.models import Area
+from app.sensors.models import Sensor
 from sqlmodel import select
 from app.plots.services import (
     get_count,
@@ -25,17 +26,51 @@ from app.plots.services import (
     update_one,
     crud,
 )
+from sqlmodel import func
 
 router = APIRouter()
 
 
 @router.get("/{plot_id}", response_model=PlotReadWithSamples)
 async def get_plot(
-    obj: CRUD = Depends(get_one),
+    plot_id: UUID,
+    session: AsyncSession = Depends(get_session),
 ) -> PlotReadWithSamples:
-    """Get a plot by id"""
+    """Get a plot by id including the distances to all sensors in the same area"""
 
-    return obj
+    # Fetch the plot by ID
+    plot = await get_one(plot_id, session=session)
+    plot = PlotReadWithSamples.model_validate(plot)
+
+    # Custom SQL query to get all sensors and their distances to the plot
+    stmt = (
+        select(
+            Sensor,
+            func.st_distance(Plot.geom, Sensor.geom).label("distance"),
+            (func.st_z(Plot.geom) - func.st_z(Sensor.geom)).label(
+                "elevation_difference"
+            ),
+        )
+        .where(Plot.id == plot_id)
+        .where(Sensor.area_id == plot.area_id)
+        .order_by(func.st_distance(Plot.geom, Sensor.geom))
+    )
+
+    result = await session.exec(stmt)
+    sensors = result.fetchall()
+
+    # Prepare a list of sensors with their distances
+    plot.sensors = [
+        {
+            "id": sensor.id,
+            "distance": distance,
+            "name": sensor.name,
+            "elevation_difference": elevation_difference,
+        }
+        for sensor, distance, elevation_difference in sensors
+    ]
+
+    return plot
 
 
 @router.get("", response_model=list[PlotReadWithSamples])

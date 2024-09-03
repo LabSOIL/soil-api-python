@@ -20,7 +20,6 @@ from app.utils.funcs import set_elevation_to_db_obj
 from sqlmodel import select
 from sqlalchemy import func
 from sqlalchemy.exc import NoResultFound
-from typing import Any
 from app.exceptions import ValidationError
 
 router = APIRouter()
@@ -116,11 +115,6 @@ async def create_one(
         )
         area_obj = res.one()
 
-    data["name"] = (
-        f"{area_obj.name.upper()[0]}"
-        f"{data['gradient'].upper()[0]}{data['plot_iterator']:02d}"
-    )
-
     obj = Plot.model_validate(data)
 
     session.add(obj)
@@ -175,12 +169,6 @@ async def update_one(
             select(Area).where(Area.id == update_data.get("area_id"))
         )
         area_obj = res.one()
-
-    update_data["name"] = (
-        f"{area_obj.name.upper()[0]}"
-        f"{update_data['gradient'].upper()[0]}"
-        f"{update_data['plot_iterator']:02d}"
-    )
 
     obj.sqlmodel_update(update_data)
 

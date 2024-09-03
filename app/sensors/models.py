@@ -15,15 +15,11 @@ if TYPE_CHECKING:
 
 
 class SensorBase(SQLModel):
-    name: str = Field(default=None, index=True)
+    name: str | None = Field(default=None, index=True)
     description: str | None = Field(default=None)
     comment: str | None = Field(default=None)
-    elevation: float | None = Field(default=None)
-    time_recorded_at_utc: datetime.datetime | None = Field(
-        default=None,
-        nullable=True,
-        index=True,
-    )
+    serial_number: str | None = Field(default=None)
+    manufacturer: str | None = Field(default=None)
     last_updated: datetime.datetime = Field(
         default_factory=datetime.datetime.now,
         title="Last Updated",
@@ -48,13 +44,8 @@ class Sensor(SensorBase, table=True):
         index=True,
         nullable=False,
     )
-    time_ingested_at_utc: datetime.datetime = Field(
-        default_factory=datetime.datetime.now,
-        nullable=False,
-        index=True,
-    )
-    geom: Any = Field(sa_column=Column(Geometry("POINTZ", srid=config.SRID)))
 
+    geom: Any = Field(sa_column=Column(Geometry("POINTZ", srid=config.SRID)))
     area_id: UUID = Field(default=None, foreign_key="area.id")
 
     area: "Area" = Relationship(
@@ -67,11 +58,28 @@ class Sensor(SensorBase, table=True):
 
 
 class SensorDataBase(SQLModel):
+    """Matching the data structure from the Tomst TMS data logger
+    https://tomst.com/web/en/systems/tms/data/
+
+    Where the date structure is as follows:
+    0;31.10.2013 11:45;0;21.5625;22.0625;23.125;148;1;0
+
+    0 	                index of the measure
+    31.10.2013 11:45    date and time in UTC
+    0 	                time zone
+    21.5625 	        T1
+    22.0625             T2
+    23.125              T3
+    148 	            soil moisture count (raw moisture data)
+    1 	                shake
+    0 	                errFlag
+    """
+
     instrument_seq: int = Field(  # The iterator integer in the instrument
         index=True,
         nullable=False,
     )
-    time: datetime.datetime = Field(
+    time_utc: datetime.datetime = Field(
         index=True,
         nullable=False,
     )
@@ -103,6 +111,14 @@ class SensorDataBase(SQLModel):
         index=False,
         nullable=True,
     )
+
+    sensor_id: UUID = Field(
+        default=None,
+        foreign_key="sensor.id",
+        nullable=False,
+        index=True,
+    )
+
     last_updated: datetime.datetime = Field(
         default_factory=datetime.datetime.now,
         title="Last Updated",
@@ -115,20 +131,17 @@ class SensorDataBase(SQLModel):
 
 
 class SensorData(SensorDataBase, table=True):
-    __table_args__ = (UniqueConstraint("id"),)
-    iterator: int = Field(
-        nullable=False,
-        primary_key=True,
-        index=True,
-    )
-    id: UUID = Field(
-        default_factory=uuid4,
-        index=True,
-        nullable=False,
+    __table_args__ = (
+        UniqueConstraint("id"),
+        UniqueConstraint("instrument_seq", "sensor_id"),
+        UniqueConstraint("time_utc", "sensor_id"),
     )
 
-    sensor_id: UUID = Field(
-        default=None, foreign_key="sensor.id", nullable=False, index=True
+    id: UUID = Field(
+        default_factory=uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
     )
 
     sensor: Sensor = Relationship(
@@ -139,7 +152,7 @@ class SensorData(SensorDataBase, table=True):
 
 class SensorDataRead(SensorDataBase):
     id: UUID
-    sensor_id: UUID
+    sensor: Any
 
 
 class SensorRead(SensorBase):
@@ -151,6 +164,8 @@ class SensorRead(SensorBase):
     coord_y: float | None = None
     coord_z: float | None = None
     coord_srid: int | None = None
+
+    area: Any | None = None
 
     @model_validator(mode="after")
     def convert_wkb_to_x_y(
@@ -165,19 +180,19 @@ class SensorRead(SensorBase):
                 if shapely_obj is not None:
                     mapping = shapely.geometry.mapping(shapely_obj)
                     values.coord_srid = values.geom.srid
-                    values.coord_y = mapping["coordinates"][0]
-                    values.coord_x = mapping["coordinates"][1]
+                    values.coord_x = mapping["coordinates"][0]
+                    values.coord_y = mapping["coordinates"][1]
                     values.coord_z = mapping["coordinates"][2]
                     values.geom = mapping
         elif isinstance(values.geom, dict):
             if values.geom is not None:
-                values.coord_y = values.geom["coordinates"][0]
-                values.coord_x = values.geom["coordinates"][1]
+                values.coord_x = values.geom["coordinates"][0]
+                values.coord_y = values.geom["coordinates"][1]
                 values.coord_z = values.geom["coordinates"][2]
                 values.geom = values.geom
         else:
-            values.coord_y = None
             values.coord_x = None
+            values.coord_y = None
             values.coord_z = None
 
         return values
@@ -200,14 +215,15 @@ class SensorReadWithDataSummaryAndPlot(SensorRead):
 
 class SensorCreate(SensorBase):
     area_id: UUID
-    coord_y: float | None = None
-    coord_x: float | None = None
-    coord_z: float | None = None
+    coord_y: float
+    coord_x: float
+    coord_z: float
 
     latitude: float | None = None
     longitude: float | None = None
 
     geom: Any | None = None
+    data_base64: str | None = None  # Base64 encoded CSV data
 
     @model_validator(mode="after")
     def convert_x_y_to_wkt(cls, values: Any) -> Any:
@@ -241,10 +257,4 @@ class SensorCreate(SensorBase):
 
 
 class SensorUpdate(SensorCreate):
-    instrumentdata: str | None = None
-
-
-class SensorCreateFromGPX(SQLModel):
-    # Model to accept the data from the GPSX file. Data stored in Base64 of gpx
-    area_id: UUID
-    gpsx_files: list[Any] | None = None
+    data_base64: str | None = None  # Base64 encoded CSV data
