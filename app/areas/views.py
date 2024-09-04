@@ -135,8 +135,6 @@ async def get_area(
 ) -> AreaRead:
     """Get an area by id"""
 
-
-
     geometry = await get_convex_hull(session)
 
     for geom in geometry:
@@ -155,7 +153,6 @@ async def get_all_areas(
     session: AsyncSession = Depends(get_session),
 ) -> list[AreaRead]:
     """Get all Area data"""
-
 
     for res in areas:
         geometry = await get_convex_hull(session)
@@ -183,7 +180,6 @@ async def create_area(
     await session.commit()
     await session.refresh(obj)
 
-
     return obj
 
 
@@ -210,7 +206,6 @@ async def update_area(
             area = AreaRead.model_validate(area)
             area.geom = geom.convex_hull
             break
-
 
     return area
 

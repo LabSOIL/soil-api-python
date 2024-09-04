@@ -1,9 +1,12 @@
 from app.sensors.models import (
     SensorRead,
+    SensorReadWithData,
     Sensor,
     SensorCreate,
     SensorUpdate,
+    SensorDataBase,
     SensorDataCreate,
+    SensorDataRead,
     SensorData,
 )
 from app.db import get_session, AsyncSession
@@ -14,8 +17,91 @@ from app.crud import CRUD
 from app.utils.funcs import decode_base64
 import csv
 from datetime import datetime
+import numpy as np
+from lttb import downsample
 
 crud = CRUD(Sensor, SensorRead, SensorCreate, SensorUpdate)
+
+
+def simplify_sensor_data_lttb(
+    data: list[SensorDataBase], target_points: int = 100
+) -> list[SensorDataBase]:
+    """
+    Simplifies the sensor data using the Largest-Triangle-Three-Buckets (LTTB) algorithm, applied to each
+    variable that needs downsampling, while preserving the rest of the data.
+
+    Args:
+        data: List of SensorDataRead containing time series sensor data.
+        target_points: The target number of data points after simplification.
+
+    Returns:
+        List of SensorDataRead with simplified data.
+    """
+    if len(data) <= target_points:
+        return data  # Return the data as-is if it's already small enough
+
+    # Prepare the time data
+    times = np.array(
+        [d.time_utc.timestamp() for d in data]
+    )  # Convert time_utc to timestamps
+
+    # Downsample the time values first
+    time_data = np.stack(
+        [times, times], axis=-1
+    )  # LTTB expects a 2-column array, so duplicate the x-axis
+    downsampled_time_data = downsample(time_data, target_points)
+    downsampled_times = downsampled_time_data[
+        :, 0
+    ]  # Extract the downsampled timestamps
+
+    # Helper to map downsampled times to original indices
+    downsampled_set = set(downsampled_times)
+
+    # Filter the original data by the downsampled times
+    downsampled_original_data = [
+        d for d in data if d.time_utc.timestamp() in downsampled_set
+    ]
+
+    # Now, apply the LTTB algorithm for each y-axis variable separately
+    def downsample_field(field_data: np.ndarray) -> np.ndarray:
+        y_data = np.stack(
+            [times, field_data], axis=-1
+        )  # Combine the time and y-value
+        downsampled_y_data = downsample(y_data, target_points)
+        return downsampled_y_data[:, 1]  # Return only the downsampled y-values
+
+    # Apply downsampling for each of the fields
+    temp1 = np.array([d.temperature_1 for d in data])
+    temp2 = np.array([d.temperature_2 for d in data])
+    temp3 = np.array([d.temperature_3 for d in data])
+    temp_avg = np.array([d.temperature_average for d in data])
+    moisture = np.array([d.soil_moisture_count for d in data])
+
+    downsampled_temp1 = downsample_field(temp1)
+    downsampled_temp2 = downsample_field(temp2)
+    downsampled_temp3 = downsample_field(temp3)
+    downsampled_temp_avg = downsample_field(temp_avg)
+    downsampled_moisture = downsample_field(moisture)
+
+    # Build the simplified data by updating the downsampled fields while preserving other fields
+    simplified_data = []
+    for i, d in enumerate(downsampled_original_data):
+        simplified_data.append(
+            SensorDataBase(
+                instrument_seq=d.instrument_seq,
+                time_utc=d.time_utc,  # Keep the downsampled time
+                time_zone=d.time_zone,
+                temperature_1=downsampled_temp1[i],
+                temperature_2=downsampled_temp2[i],
+                temperature_3=downsampled_temp3[i],
+                temperature_average=downsampled_temp_avg[i],
+                soil_moisture_count=downsampled_moisture[i],
+                shake=d.shake,
+                error_flat=d.error_flat,
+            )
+        )
+
+    return simplified_data
 
 
 async def get_count(
@@ -54,6 +140,7 @@ async def get_data(
 
 async def get_one(
     sensor_id: UUID,
+    low_resolution: bool = Query(False),
     session: AsyncSession = Depends(get_session),
 ):
     res = await crud.get_model_by_id(model_id=sensor_id, session=session)
@@ -62,6 +149,12 @@ async def get_one(
         raise HTTPException(
             status_code=404, detail=f"ID: {sensor_id} not found"
         )
+
+    res = SensorReadWithData.model_validate(res)
+
+    if low_resolution:
+        res.data = simplify_sensor_data_lttb(res.data)
+
     return res
 
 

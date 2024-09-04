@@ -178,9 +178,12 @@ class SensorRead(SensorBase):
     longitude: float | None = None
 
     area: Any | None = None
-    data: list[Any] | None = None
 
     _convert_wkb_to_x_y = model_validator(mode="after")(convert_wkb_to_x_y)
+
+
+class SensorReadWithData(SensorRead):
+    data: list[Any] | None = None
 
 
 class SensorDataSummary(SQLModel):

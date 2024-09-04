@@ -149,6 +149,7 @@ class PlotRead(PlotBase):
     latitude: float | None = None
     longitude: float | None = None
 
+    area: Any
     name: str | None = None
 
     _convert_wkb_to_x_y = model_validator(mode="after")(convert_wkb_to_x_y)

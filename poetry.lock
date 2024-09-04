@@ -462,6 +462,21 @@ MarkupSafe = ">=2.0"
 i18n = ["Babel (>=2.7)"]
 
 [[package]]
+name = "lttb"
+version = "0.3.1"
+description = "Largest-Triangle-Three-Buckets algorithm for downsampling time series-like data"
+optional = false
+python-versions = "*"
+files = [
+    {file = "lttb-0.3.1-py2-none-any.whl", hash = "sha256:1bc6ad38626c4bf3b12858e59369c5f03e9b7833999cd955bf7251a6570e9252"},
+    {file = "lttb-0.3.1-py3-none-any.whl", hash = "sha256:aae09aa6865adf0626fb80c1eea87a9ecc352a950c5759bb167945c0fb38eabf"},
+    {file = "lttb-0.3.1.tar.gz", hash = "sha256:7a8e7d75c6147b3875a66132b73dfac16cde7bc7242a5ff83e5186a8a7c6812c"},
+]
+
+[package.dependencies]
+numpy = "*"
+
+[[package]]
 name = "lxml"
 version = "5.2.1"
 description = "Powerful and Pythonic XML processing library combining libxml2/libxslt with the ElementTree API."
@@ -1576,4 +1591,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<3.13"
-content-hash = "d17a841d152e8fbe35308eaf20e7f3f8a2b586e422b0599ad3d4a4a052d91234"
+content-hash = "088e881aa951e6ab779ef9af57cc02ecf93681b1d9064dab1430b9ad1760698f"

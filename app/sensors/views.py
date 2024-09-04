@@ -1,5 +1,6 @@
 from app.sensors.models import (
     SensorRead,
+    SensorReadWithData,
     Sensor,
     SensorCreate,
     SensorUpdate,
@@ -22,7 +23,7 @@ from app.sensors.services import (
 router = APIRouter()
 
 
-@router.get("/{sensor_id}", response_model=SensorRead)
+@router.get("/{sensor_id}", response_model=SensorReadWithData)
 async def get_sensor(
     obj: CRUD = Depends(get_one),
 ) -> SensorRead:
@@ -42,7 +43,7 @@ async def get_all_sensors(
     return sensors
 
 
-@router.post("", response_model=SensorRead)
+@router.post("", response_model=SensorReadWithData)
 async def create_sensor(
     sensor: SensorRead = Depends(create_one),
 ) -> SensorRead:
@@ -51,7 +52,7 @@ async def create_sensor(
     return sensor
 
 
-@router.put("/{sensor_id}", response_model=SensorRead)
+@router.put("/{sensor_id}", response_model=SensorReadWithData)
 async def update_sensor(
     sensor: SensorRead = Depends(update_one),
 ) -> SensorRead:

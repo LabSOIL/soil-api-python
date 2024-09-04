@@ -1,6 +1,7 @@
 from app.plots.models import (
     Plot,
     PlotCreate,
+    PlotRead,
     PlotReadWithSamples,
     PlotUpdate,
     PlotUpdateBatch,
@@ -73,13 +74,13 @@ async def get_plot(
     return plot
 
 
-@router.get("", response_model=list[PlotReadWithSamples])
+@router.get("")
 async def get_all_plots(
     response: Response,
     plots: Plot = Depends(get_data),
     total_count: int = Depends(get_count),
     include_image: bool = Query(False, description="Include image data"),
-) -> list[PlotReadWithSamples]:
+) -> list[PlotRead]:
     """Get all Plot data"""
 
     if not include_image:
