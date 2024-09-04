@@ -1,15 +1,13 @@
 from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
 from uuid import UUID, uuid4
-from typing import TYPE_CHECKING, Any
-from app.config import config
+from typing import TYPE_CHECKING
 import datetime
 from sqlalchemy.sql import func
-from app.utils.funcs import resize_base64_image
 from pydantic import model_validator
+from app.utils.validators import resize_image
 
 if TYPE_CHECKING:
     from app.soil.profiles.models import SoilProfile
-    from app.plots.models import Plot
 
 
 class SoilTypeBase(SQLModel):
@@ -56,28 +54,10 @@ class SoilTypeRead(SoilTypeBase):
 class SoilTypeCreate(SoilTypeBase):
     pass
 
-    @model_validator(mode="after")
-    def resize_image(cls, values: Any) -> Any:
-        """Resize the image"""
-
-        if values.image is not None:
-            values.image = resize_base64_image(
-                values.image, config.IMAGE_MAX_SIZE
-            )
-
-        return values
+    _resize_image = model_validator(mode="after")(resize_image)
 
 
 class SoilTypeUpdate(SoilTypeBase):
     pass
 
-    @model_validator(mode="after")
-    def resize_image(cls, values: Any) -> Any:
-        """Resize the image"""
-
-        if values.image is not None:
-            values.image = resize_base64_image(
-                values.image, config.IMAGE_MAX_SIZE
-            )
-
-        return values
+    _resize_image = model_validator(mode="after")(resize_image)

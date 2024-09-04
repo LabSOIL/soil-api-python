@@ -1,14 +1,13 @@
 from sqlmodel import SQLModel, Field, Column, Relationship, UniqueConstraint
-from geoalchemy2 import Geometry, WKBElement
+from geoalchemy2 import Geometry
 from uuid import uuid4, UUID
 from typing import Any
 from pydantic import model_validator
-import shapely
 from typing import TYPE_CHECKING
 import datetime
-import pyproj
 from app.config import config
 from sqlalchemy.sql import func
+from app.utils.validators import convert_wkb_to_x_y, convert_x_y_to_wkt
 
 if TYPE_CHECKING:
     from app.areas.models import Area
@@ -175,39 +174,13 @@ class SensorRead(SensorBase):
     coord_y: float | None = None
     coord_z: float | None = None
     coord_srid: int | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
     area: Any | None = None
     data: list[Any] | None = None
 
-    @model_validator(mode="after")
-    def convert_wkb_to_x_y(
-        cls,
-        values: "SensorRead",
-    ) -> dict:
-        """Form the geometry from the X and Y coordinates"""
-
-        if isinstance(values.geom, WKBElement):
-            if values.geom is not None:
-                shapely_obj = shapely.wkb.loads(str(values.geom))
-                if shapely_obj is not None:
-                    mapping = shapely.geometry.mapping(shapely_obj)
-                    values.coord_srid = values.geom.srid
-                    values.coord_x = mapping["coordinates"][0]
-                    values.coord_y = mapping["coordinates"][1]
-                    values.coord_z = mapping["coordinates"][2]
-                    values.geom = mapping
-        elif isinstance(values.geom, dict):
-            if values.geom is not None:
-                values.coord_x = values.geom["coordinates"][0]
-                values.coord_y = values.geom["coordinates"][1]
-                values.coord_z = values.geom["coordinates"][2]
-                values.geom = values.geom
-        else:
-            values.coord_x = None
-            values.coord_y = None
-            values.coord_z = None
-
-        return values
+    _convert_wkb_to_x_y = model_validator(mode="after")(convert_wkb_to_x_y)
 
 
 class SensorDataSummary(SQLModel):
@@ -237,35 +210,7 @@ class SensorCreate(SensorBase):
     geom: Any | None = None
     data_base64: str | None = None  # Base64 encoded CSV data
 
-    @model_validator(mode="after")
-    def convert_x_y_to_wkt(cls, values: Any) -> Any:
-        """Convert the X and Y coordinates to a WKT geometry"""
-
-        # Convert coordinates to WKT geom. Prioritize x and y, then lat and lon
-        # Conversion from 4326 to Swiss coordinates
-        if values.coord_y and values.coord_x:
-            point = shapely.geometry.Point(
-                values.coord_x, values.coord_y, values.coord_z
-            )
-            values.geom = point.wkt
-        elif values.latitude and values.longitude:
-            # If no x and y, try lat and lon. Convert to Swiss coordinates
-            pyproj_crs = pyproj.CRS("EPSG:4326")
-            pyproj_crs_swiss = pyproj.CRS(f"EPSG:{str(config.SRID)}")
-            project = pyproj.Transformer.from_crs(
-                pyproj_crs, pyproj_crs_swiss, always_xy=True
-            ).transform
-            values.coord_x, values.coord_y = project(
-                values.latitude, values.longitude
-            )
-            point = shapely.geometry.Point(
-                values.coord_x, values.coord_y, values.coord_z
-            )
-            values.geom = point.wkt
-        else:
-            values.geom = None
-
-        return values
+    _convert_x_y_to_wkt = model_validator(mode="after")(convert_x_y_to_wkt)
 
 
 class SensorUpdate(SensorCreate):

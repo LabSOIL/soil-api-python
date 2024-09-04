@@ -1,7 +1,5 @@
 import datetime
-import shapely
-import pyproj
-from geoalchemy2 import Geometry, WKBElement
+from geoalchemy2 import Geometry
 from pydantic import model_validator
 from sqlmodel import (
     SQLModel,
@@ -13,11 +11,14 @@ from sqlmodel import (
 )
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4, UUID
-from app.areas.models import Area, AreaRead
+from app.areas.models import Area
 from app.config import config
 from sqlalchemy.sql import func
-from app.utils.funcs import resize_base64_image
-
+from app.utils.validators import (
+    convert_wkb_to_x_y,
+    convert_x_y_to_wkt,
+    resize_images,
+)
 
 if TYPE_CHECKING:
     from app.soil.types.models import SoilType
@@ -142,55 +143,7 @@ class SoilProfileRead(SoilProfileBase):
     latitude: float | None = None
     longitude: float | None = None
 
-    @model_validator(mode="after")
-    def convert_wkb_to_x_y(
-        cls,
-        values: "PlotRead",
-    ) -> dict:
-        """Form the geometry from the X and Y coordinates"""
-
-        if isinstance(values.geom, WKBElement):
-            if values.geom is not None:
-                shapely_obj = shapely.wkb.loads(str(values.geom))
-                if shapely_obj is not None:
-                    mapping = shapely.geometry.mapping(shapely_obj)
-                    values.coord_srid = values.geom.srid
-                    values.coord_x = mapping["coordinates"][0]
-                    values.coord_y = mapping["coordinates"][1]
-                    values.coord_z = mapping["coordinates"][2]
-                    values.geom = mapping
-
-                    # Set the latitude and longitude by reprojecting to WGS84
-                    transformer = pyproj.Transformer.from_crs(
-                        f"EPSG:{str(config.SRID)}", "EPSG:4326", always_xy=True
-                    )
-                    values.longitude, values.latitude, _ = (
-                        transformer.transform(
-                            values.coord_x, values.coord_y, values.coord_z
-                        )
-                    )
-
-        elif isinstance(values.geom, dict):
-            if values.geom is not None:
-                values.coord_x = values.geom["coordinates"][0]
-                values.coord_y = values.geom["coordinates"][1]
-                values.coord_z = values.geom["coordinates"][2]
-                values.geom = values.geom
-
-                # Set the latitude and longitude by reprojecting to WGS84
-                transformer = pyproj.Transformer.from_crs(
-                    f"EPSG:{str(config.SRID)}", "EPSG:4326", always_xy=True
-                )
-                values.longitude, values.latitude, _ = transformer.transform(
-                    values.coord_x, values.coord_y, values.coord_z
-                )
-
-        else:
-            values.coord_x = None
-            values.coord_y = None
-            values.coord_z = None
-
-        return values
+    _convert_wkb_to_x_y = model_validator(mode="after")(convert_wkb_to_x_y)
 
 
 class GenericNameIDModel(SQLModel):
@@ -213,34 +166,8 @@ class SoilProfileCreate(SoilProfileBase):
 
     name: str | None = None
 
-    @model_validator(mode="after")
-    def convert_x_y_to_wkt(cls, values: Any) -> Any:
-        """Convert the X and Y coordinates to a WKT geometry"""
-
-        # Encode the SRID into the WKT
-        values.geom = shapely.wkt.dumps(
-            shapely.geometry.Point(
-                values.coord_x, values.coord_y, values.coord_z
-            ),
-        )
-
-        return values
-
-    @model_validator(mode="after")
-    def resize_images(cls, values: Any) -> Any:
-        """Resize the images"""
-
-        if values.photo is not None:
-            values.photo = resize_base64_image(
-                values.photo, config.IMAGE_MAX_SIZE
-            )
-
-        if values.soil_diagram is not None:
-            values.soil_diagram = resize_base64_image(
-                values.soil_diagram, config.IMAGE_MAX_SIZE
-            )
-
-        return values
+    _convert_x_y_to_wkt = model_validator(mode="after")(convert_x_y_to_wkt)
+    _resize_images = model_validator(mode="after")(resize_images)
 
 
 class SoilProfileUpdate(SoilProfileBase):
@@ -250,29 +177,5 @@ class SoilProfileUpdate(SoilProfileBase):
 
     geom: Any | None = None
 
-    @model_validator(mode="after")
-    def convert_x_y_to_wkt(cls, values: Any) -> Any:
-        """Convert the X and Y coordinates to a WKT geometry"""
-        print(values.coord_x, values.coord_y, values.coord_z)
-        point = shapely.geometry.Point(
-            values.coord_x, values.coord_y, values.coord_z
-        )
-        values.geom = point.wkt
-
-        return values
-
-    @model_validator(mode="after")
-    def resize_images(cls, values: Any) -> Any:
-        """Resize the images"""
-
-        if values.photo is not None:
-            values.photo = resize_base64_image(
-                values.photo, config.IMAGE_MAX_SIZE
-            )
-
-        if values.soil_diagram is not None:
-            values.soil_diagram = resize_base64_image(
-                values.soil_diagram, config.IMAGE_MAX_SIZE
-            )
-
-        return values
+    _convert_x_y_to_wkt = model_validator(mode="after")(convert_x_y_to_wkt)
+    _resize_images = model_validator(mode="after")(resize_images)

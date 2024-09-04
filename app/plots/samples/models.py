@@ -1,12 +1,10 @@
-from geoalchemy2 import Geometry, WKBElement
 from pydantic import model_validator
-from sqlmodel import SQLModel, Field, Column, UniqueConstraint, Relationship
-from typing import Any
+from sqlmodel import SQLModel, Field, UniqueConstraint, Relationship
 from uuid import UUID, uuid4
-from enum import Enum
 from app.plots.models import Plot, PlotReadWithArea
 import datetime
 from sqlalchemy.sql import func
+from app.utils.validators import empty_string_to_none
 
 
 class PlotSampleBase(SQLModel):
@@ -290,14 +288,7 @@ class PlotSampleCreate(PlotSampleBase):
     plot_gradient: str | None = None
     plot_iterator: int | None = None
 
-    @model_validator(mode="before")
-    def empty_string_to_none(cls, values):
-        """Convert empty strings for float fields to None."""
-
-        for key, value in values.items():
-            if isinstance(value, str) and not value:
-                values[key] = None
-        return values
+    _handle_empty_string = model_validator(mode="before")(empty_string_to_none)
 
 
 class PlotSampleUpdate(PlotSampleBase):
@@ -307,14 +298,7 @@ class PlotSampleUpdate(PlotSampleBase):
     plot_gradient: str | None = None
     plot_iterator: int | None = None
 
-    @model_validator(mode="before")
-    def empty_string_to_none(cls, values):
-        """Convert empty strings for float fields to None."""
-
-        for key, value in values.items():
-            if isinstance(value, str) and not value:
-                values[key] = None
-        return values
+    _handle_empty_string = model_validator(mode="before")(empty_string_to_none)
 
 
 class PlotSampleUpdateBatch(PlotSampleUpdate):

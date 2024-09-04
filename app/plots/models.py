@@ -1,7 +1,5 @@
-import shapely
 import datetime
-import pyproj
-from geoalchemy2 import Geometry, WKBElement
+from geoalchemy2 import Geometry
 from pydantic import model_validator
 from sqlmodel import (
     SQLModel,
@@ -13,13 +11,17 @@ from sqlmodel import (
 )
 from typing import Any, TYPE_CHECKING
 from uuid import UUID, uuid4
-from app.utils.funcs import resize_base64_image
 from app.config import config
 from sqlalchemy.sql import func
 from app.transects.models.nodes import TransectNode
 from app.transects.models.transects import Transect
 import enum
-import sqlalchemy as sa
+from app.utils.validators import (
+    convert_wkb_to_x_y,
+    convert_x_y_to_wkt,
+    resize_image,
+    empty_string_to_none,
+)
 
 if TYPE_CHECKING:
     from app.areas.models import Area
@@ -149,55 +151,7 @@ class PlotRead(PlotBase):
 
     name: str | None = None
 
-    @model_validator(mode="after")
-    def convert_wkb_to_x_y(
-        cls,
-        values: "PlotReadWithSamples",
-    ) -> dict:
-        """Form the geometry from the X and Y coordinates"""
-
-        if isinstance(values.geom, WKBElement):
-            if values.geom is not None:
-                shapely_obj = shapely.wkb.loads(str(values.geom))
-                if shapely_obj is not None:
-                    mapping = shapely.geometry.mapping(shapely_obj)
-                    values.coord_srid = values.geom.srid
-                    values.coord_x = mapping["coordinates"][0]
-                    values.coord_y = mapping["coordinates"][1]
-                    values.coord_z = mapping["coordinates"][2]
-                    values.geom = mapping
-
-                    # Set the latitude and longitude by reprojecting to WGS84
-                    transformer = pyproj.Transformer.from_crs(
-                        f"EPSG:{str(config.SRID)}", "EPSG:4326", always_xy=True
-                    )
-                    values.longitude, values.latitude, _ = (
-                        transformer.transform(
-                            values.coord_x, values.coord_y, values.coord_z
-                        )
-                    )
-
-        elif isinstance(values.geom, dict):
-            if values.geom is not None:
-                values.coord_x = values.geom["coordinates"][0]
-                values.coord_y = values.geom["coordinates"][1]
-                values.coord_z = values.geom["coordinates"][2]
-                values.geom = values.geom
-
-                # Set the latitude and longitude by reprojecting to WGS84
-                transformer = pyproj.Transformer.from_crs(
-                    f"EPSG:{str(config.SRID)}", "EPSG:4326", always_xy=True
-                )
-                values.longitude, values.latitude, _ = transformer.transform(
-                    values.coord_x, values.coord_y, values.coord_z
-                )
-
-        else:
-            values.coord_x = None
-            values.coord_y = None
-            values.coord_z = None
-
-        return values
+    _convert_wkb_to_x_y = model_validator(mode="after")(convert_wkb_to_x_y)
 
 
 class NestedAreaWithProject(SQLModel):
@@ -239,38 +193,10 @@ class PlotCreate(PlotBase):
 
     name: str | None = None  # Set null to allow endpoint func to gen. name
 
-    @model_validator(mode="after")
-    def convert_x_y_to_wkt(cls, values: Any) -> Any:
-        """Convert the X and Y coordinates to a WKT geometry"""
-
-        # Encode the SRID into the WKT
-        values.geom = shapely.wkt.dumps(
-            shapely.geometry.Point(
-                values.coord_x, values.coord_y, values.coord_z
-            ),
-        )
-
-        return values
-
-    @model_validator(mode="after")
-    def resize_image(cls, values: Any) -> Any:
-        """Resize the image"""
-
-        if values.image is not None:
-            values.image = resize_base64_image(
-                values.image, config.IMAGE_MAX_SIZE
-            )
-
-        return values
-
-    @model_validator(mode="before")
-    def empty_string_to_none(cls, values):
-        """Convert empty strings for float and datetime fields to None."""
-
-        for key, value in values.items():
-            if isinstance(value, str) and not value:
-                values[key] = None
-        return values
+    # Validators
+    _convert_x_y_to_wkt = model_validator(mode="after")(convert_x_y_to_wkt)
+    _resize_image = model_validator(mode="after")(resize_image)
+    _handle_empty_string = model_validator(mode="before")(empty_string_to_none)
 
 
 class PlotUpdate(PlotBase):
@@ -285,36 +211,10 @@ class PlotUpdate(PlotBase):
 
     name: str | None = None  # Set null to allow endpoint func to gen. name
 
-    @model_validator(mode="after")
-    def convert_x_y_to_wkt(cls, values: Any) -> Any:
-        """Convert the X and Y coordinates to a WKT geometry"""
-
-        point = shapely.geometry.Point(
-            values.coord_x, values.coord_y, values.coord_z
-        )
-        values.geom = point.wkt
-
-        return values
-
-    @model_validator(mode="after")
-    def resize_image(cls, values: Any) -> Any:
-        """Resize the image"""
-
-        if values.image is not None:
-            values.image = resize_base64_image(
-                values.image, config.IMAGE_MAX_SIZE
-            )
-
-        return values
-
-    @model_validator(mode="before")
-    def empty_string_to_none(cls, values):
-        """Convert empty strings for float and datetime fields to None."""
-
-        for key, value in values.items():
-            if isinstance(value, str) and not value:
-                values[key] = None
-        return values
+    # Validators
+    _convert_x_y_to_wkt = model_validator(mode="after")(convert_x_y_to_wkt)
+    _resize_image = model_validator(mode="after")(resize_image)
+    _handle_empty_string = model_validator(mode="before")(empty_string_to_none)
 
 
 class PlotUpdateBatch(PlotUpdate):
