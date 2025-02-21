@@ -1,6 +1,8 @@
 # SOIL API
 The backend API for the SOIL lab.
 
+This repository is deprecated and has been replaced by the rewrite in Rust. [https://github.com/LabSOIL/soil-api](https://github.com/LabSOIL/soil-api).
+
 ## Getting started
 
 Please refer to the documentation of the
